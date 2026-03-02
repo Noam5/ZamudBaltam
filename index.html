@@ -1,0 +1,1846 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>שיבוצי רכב ממוגן</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: Calibri, Arial, sans-serif;
+      background: #fff;
+      color: #000;
+      direction: rtl;
+      font-size: 16px;
+    }
+
+    /* --- Toolbar --- */
+    .toolbar {
+      background: #217346;
+      color: white;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #185a34;
+    }
+
+    .toolbar h1 {
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn {
+      padding: 5px 14px;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 2px;
+      cursor: pointer;
+      font-size: 15px;
+      font-family: inherit;
+      background: transparent;
+      color: white;
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-add {
+      background: #217346;
+      color: white;
+      border: 1px solid #999;
+    }
+
+    .btn-add:hover {
+      background: #185a34;
+    }
+
+    .btn-del {
+      color: #c00;
+      border-color: #c00;
+      background: #fff;
+    }
+
+    .btn-del:hover {
+      background: #fee;
+    }
+
+    /* --- Tabs --- */
+    .tabs {
+      display: flex;
+      background: #e7e6e6;
+      border-bottom: 1px solid #b4b4b4;
+      padding: 0;
+    }
+
+    .tab {
+      padding: 8px 20px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      border-bottom: none;
+      background: #e7e6e6;
+      font-size: 16px;
+      font-family: inherit;
+      color: #333;
+      margin-right: -1px;
+    }
+
+    .tab:hover {
+      background: #f1f1f1;
+    }
+
+    .tab.active {
+      background: #fff;
+      border-color: #b4b4b4;
+      border-bottom-color: #fff;
+      font-weight: 700;
+      position: relative;
+      z-index: 1;
+    }
+
+    .tab-content {
+      display: none;
+      padding: 0;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* --- Summary row (Excel formula bar style) --- */
+    .summary-bar {
+      display: flex;
+      gap: 20px;
+      padding: 8px 12px;
+      background: #f2f2f2;
+      border-bottom: 1px solid #b4b4b4;
+      flex-wrap: wrap;
+      font-size: 16px;
+    }
+
+    .summary-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .summary-label {
+      color: #555;
+    }
+
+    .summary-value {
+      font-weight: 700;
+    }
+
+    .summary-value.zamud {
+      color: #217346;
+    }
+
+    .summary-value.baltam {
+      color: #c65100;
+    }
+
+    .summary-value.bml {
+      color: #c00;
+    }
+
+    .summary-value.b120 {
+      color: #6a1b9a;
+    }
+
+    /* --- Excel-like tables --- */
+    .table-wrap {
+      overflow: auto;
+      max-height: calc(100vh - 180px);
+    }
+
+    table {
+      border-collapse: collapse;
+      font-size: 16px;
+      table-layout: auto;
+    }
+
+    th,
+    td {
+      border: 1px solid #b4b4b4;
+      padding: 3px 6px;
+      text-align: right;
+      white-space: nowrap;
+      height: 24px;
+      vertical-align: middle;
+    }
+
+    th {
+      background: #e2efda;
+      font-weight: 700;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      border-color: #9bc2e6;
+    }
+
+    /* --- Day color palette (alternating per date) --- */
+    .day-0 {
+      background: #fff;
+    }
+
+    .day-1 {
+      background: #f2f7fb;
+    }
+
+    .day-2 {
+      background: #fdf6ec;
+    }
+
+    .day-3 {
+      background: #f0faf0;
+    }
+
+    .day-4 {
+      background: #fdf0f5;
+    }
+
+    .day-5 {
+      background: #f5f0fd;
+    }
+
+    .day-6 {
+      background: #f0f8fa;
+    }
+
+    .day-7 {
+      background: #faf5f0;
+    }
+
+    .day-8 {
+      background: #f5faf5;
+    }
+
+    .day-9 {
+      background: #f8f0f8;
+    }
+
+    .day-10 {
+      background: #f0f5fa;
+    }
+
+    .day-11 {
+      background: #fafaf0;
+    }
+
+    /* --- Code colors (text color in the code cell) --- */
+    td.code-Z {
+      color: #217346;
+      font-weight: 700;
+    }
+
+    td.code-B {
+      color: #c65100;
+      font-weight: 700;
+    }
+
+    td.code-BML {
+      color: #c00;
+      font-weight: 700;
+    }
+
+    td.code-B120 {
+      color: #6a1b9a;
+      font-weight: 700;
+    }
+
+    /* --- Inline cell editing --- */
+    td.editable {
+      cursor: cell;
+    }
+
+    td.editable:hover {
+      background: #d6e8f7 !important;
+      outline: 2px solid #4472c4;
+      outline-offset: -2px;
+    }
+
+    td input,
+    td select {
+      border: none;
+      background: transparent;
+      font-family: inherit;
+      font-size: 16px;
+      padding: 0;
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      text-align: right;
+      outline: none;
+    }
+
+    td input:focus,
+    td select:focus {
+      background: #fff;
+      outline: 2px solid #4472c4;
+      outline-offset: -1px;
+    }
+
+    td input[type="text"] {
+      width: 90px;
+    }
+
+    td input[placeholder="DD-MM-YYYY"] {
+      width: 100px;
+    }
+
+    td input[placeholder="HH:MM"] {
+      width: 60px;
+      text-align: center;
+    }
+
+    /* date cell with calendar icon */
+    .date-cell {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+
+    .date-cell input[type="text"] {
+      flex: 1;
+    }
+
+    .date-cell input[type="date"] {
+      position: absolute;
+      width: 0;
+      height: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .date-pick {
+      cursor: pointer;
+      font-size: 15px;
+      padding: 0 2px;
+      color: #555;
+      user-select: none;
+    }
+
+    .date-pick:hover {
+      color: #217346;
+    }
+
+    /* time cell with clock icon */
+    .time-cell {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+
+    .time-cell input[type="text"] {
+      flex: 1;
+    }
+
+    .time-pick {
+      cursor: pointer;
+      font-size: 15px;
+      padding: 0 2px;
+      color: #555;
+      user-select: none;
+    }
+
+    .time-pick:hover {
+      color: #217346;
+    }
+
+    /* 24h time dropdown */
+    .time-dropdown {
+      position: absolute;
+      z-index: 200;
+      background: #fff;
+      border: 1px solid #b4b4b4;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      max-height: 200px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      font-size: 14px;
+      min-width: 60px;
+    }
+
+    .time-dropdown div {
+      padding: 3px 10px;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .time-dropdown div:hover,
+    .time-dropdown div.selected {
+      background: #d6e8f7;
+    }
+
+    /* computed (read-only) cells */
+    td.computed {
+      color: #444;
+      background: inherit;
+    }
+
+    /* delete cell */
+    td.del-cell {
+      text-align: center;
+      width: 36px;
+      padding: 0;
+      white-space: nowrap;
+    }
+
+    td.del-cell:hover {
+      background: #fee !important;
+    }
+
+    .del-x {
+      cursor: pointer;
+      color: #c00;
+      font-weight: 700;
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .del-x:hover {
+      color: #900;
+    }
+
+    .check-warn {
+      color: #d00;
+      font-size: 16px;
+      cursor: help;
+      margin-right: 2px;
+    }
+
+    /* --- Add row at bottom (like an empty Excel row) --- */
+    tr.add-row td {
+      background: #e8f5e9;
+    }
+
+    tr.add-row input {
+      background: transparent;
+    }
+
+    /* --- Travel / Check Toggle --- */
+    .toggle-btn {
+      display: flex;
+      background: #fff;
+      border: 1px solid #b4b4b4;
+      border-radius: 4px;
+      overflow: hidden;
+      font-size: 14px;
+      cursor: pointer;
+      height: 22px;
+    }
+
+    .toggle-opt {
+      flex: 1;
+      text-align: center;
+      padding: 1px 0;
+      color: #666;
+      background: #f9f9f9;
+      user-select: none;
+    }
+
+    .toggle-opt.selected {
+      background: #217346;
+      color: #fff;
+      font-weight: bold;
+    }
+
+    .toggle-opt.selected.bodek {
+      background: #c65100;
+    }
+
+    /* --- Legend --- */
+    .legend {
+      display: flex;
+      gap: 16px;
+      padding: 6px 12px;
+      background: #f9f9f9;
+      border-bottom: 1px solid #ddd;
+      font-size: 15px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .legend-sq {
+      width: 14px;
+      height: 14px;
+      display: inline-block;
+      border: 1px solid #999;
+    }
+
+    /* --- Travel / Hours tabs --- */
+    .tab-inner {
+      padding: 8px;
+    }
+
+    .filter-bar {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 6px;
+      align-items: center;
+      font-size: 14px;
+    }
+
+    .filter-bar input {
+      padding: 3px 6px;
+      border: 1px solid #b4b4b4;
+      font-size: 14px;
+      font-family: inherit;
+      width: 200px;
+    }
+
+    .settings-note {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 6px;
+    }
+
+    .autocomplete-list {
+      position: fixed;
+      background: white;
+      border: 1px solid #b4b4b4;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 200;
+      display: none;
+      font-size: 15px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    }
+
+    .autocomplete-list.show {
+      display: block;
+    }
+
+    .autocomplete-item {
+      padding: 4px 8px;
+      cursor: pointer;
+    }
+
+    .autocomplete-item:hover {
+      background: #d6e8f7;
+    }
+
+    .autocomplete-item.selected {
+      background: #d6e8f7;
+    }
+
+    /* --- Gantt chart --- */
+    .gantt-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 15px;
+    }
+
+    .gantt-controls select {
+      font-size: 15px;
+      font-family: inherit;
+      padding: 3px 8px;
+    }
+
+    #ganttTable th,
+    #ganttTable td {
+      padding: 1px 2px;
+      text-align: center;
+      font-size: 12px;
+    }
+
+    #ganttTable th {
+      background: #e2efda;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    #ganttTable td.gantt-info {
+      text-align: right;
+      padding: 2px 6px;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    #ganttTable td.gantt-bar {
+      min-width: 18px;
+      width: 18px;
+      padding: 0;
+    }
+
+    #ganttTable td.gantt-filled {
+      background: #b7e1cd;
+    }
+
+    #ganttTable tr:nth-child(even) td.gantt-info {
+      background: #f9f9f9;
+    }
+
+    @media print {
+
+      .toolbar,
+      .tabs,
+      .legend,
+      .filter-bar,
+      td.del-cell,
+      tr.add-row,
+      .summary-bar,
+      .gantt-controls {
+        display: none !important;
+      }
+
+      .tab-content {
+        display: block !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="toolbar">
+    <h1>שיבוצי רכב ממוגן</h1>
+    <div class="toolbar-actions">
+      <button class="btn" onclick="exportJSON()">יצוא JSON</button>
+      <button class="btn" onclick="exportCSV()">יצוא CSV</button>
+      <button class="btn" onclick="document.getElementById('importFile').click()">יבוא JSON</button>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
+      <button class="btn" onclick="resetData()">איפוס</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="trips">נסיעות</button>
+    <button class="tab" data-tab="travel">זמני נסיעה</button>
+    <button class="tab" data-tab="hours">שעות צמוד</button>
+    <button class="tab" data-tab="gantt">גאנט נסיעות</button>
+  </div>
+
+  <!-- TRIPS TAB -->
+  <div id="tab-trips" class="tab-content active">
+    <div class="summary-bar">
+      <div class="summary-item">
+        <span class="summary-label">נסיעות:</span>
+        <span class="summary-value" id="totalTrips">0</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">שעות צמוד:</span>
+        <span class="summary-value zamud" id="totalZamud">0:00</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">מחיר בלת"ם:</span>
+        <span class="summary-value baltam" id="totalBaltam">0 ₪</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">Z:</span>
+        <span class="summary-value zamud" id="countZ">0</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">B:</span>
+        <span class="summary-value baltam" id="countB">0</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">BML:</span>
+        <span class="summary-value bml" id="countBML">0</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">B120:</span>
+        <span class="summary-value b120" id="countB120">0</span>
+      </div>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><span class="legend-sq" style="background:#217346"></span> צמוד (Z)</div>
+      <div class="legend-item"><span class="legend-sq" style="background:#c65100"></span> בלת"ם (B)</div>
+      <div class="legend-item"><span class="legend-sq" style="background:#c00"></span> בלת"ם מחוץ לשעות (BML)</div>
+      <div class="legend-item"><span class="legend-sq" style="background:#6a1b9a"></span> בלת"ם 120 (B120)</div>
+    </div>
+    <div class="table-wrap">
+      <table id="tripsTable">
+        <thead>
+          <tr>
+            <th></th>
+            <th>מספר ואוצ׳ר</th>
+            <th>תאריך</th>
+            <th>יום</th>
+            <th>ממקום</th>
+            <th>התחלה</th>
+            <th>למקום</th>
+            <th>סיום</th>
+            <th>משך</th>
+            <th>קוד</th>
+            <th>סיווג</th>
+            <th>מחיר</th>
+          </tr>
+        </thead>
+        <tbody id="tripsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TRAVEL TIMES TAB -->
+  <div id="tab-travel" class="tab-content">
+    <div class="tab-inner">
+      <div class="filter-bar">
+        <span>חיפוש:</span>
+        <input type="text" id="travelFilter" placeholder="שם ישוב..." oninput="renderTravel()">
+      </div>
+      <div class="table-wrap" style="max-height:calc(100vh - 120px)">
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              <th>#</th>
+              <th style="min-width:120px">מישוב</th>
+              <th style="min-width:120px">לישוב</th>
+              <th>זמן בין 06:00-12:00</th>
+              <th>זמן בין 12:00-24:00</th>
+              <th>נסיעה או לבדיקה</th>
+              <th>מחיר ₪</th>
+            </tr>
+          </thead>
+          <tbody id="travelBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- WORKING HOURS TAB -->
+  <div id="tab-hours" class="tab-content">
+    <div class="tab-inner">
+      <p class="settings-note">נסיעות מחוץ לשעות אלו יסווגו כבלת"ם מחוץ לשעות (BML). לחץ על תא כדי לערוך.</p>
+      <table style="max-width:400px">
+        <thead>
+          <tr>
+            <th>יום</th>
+            <th>התחלה</th>
+            <th>סיום</th>
+            <th>סה"כ</th>
+          </tr>
+        </thead>
+        <tbody id="hoursBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- GANTT TAB -->
+  <div id="tab-gantt" class="tab-content">
+    <div class="tab-inner">
+      <div class="gantt-controls">
+        <span>יום בשבוע:</span>
+        <select id="ganttDay" onchange="renderGantt()">
+          <option value="0">א׳ (ראשון)</option>
+          <option value="1">ב׳ (שני)</option>
+          <option value="2">ג׳ (שלישי)</option>
+          <option value="3">ד׳ (רביעי)</option>
+          <option value="4">ה׳ (חמישי)</option>
+          <option value="5">ו׳ (שישי)</option>
+          <option value="-1" selected>כל הימים</option>
+        </select>
+      </div>
+      <div class="table-wrap" style="max-height:calc(100vh - 140px)">
+        <table id="ganttTable">
+          <thead id="ganttHead"></thead>
+          <tbody id="ganttBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    // DEFAULT DATA
+    // ============================================================
+
+    const DEFAULT_WORKING_HOURS = [
+      { day: 0, dayHeb: "א", start: "06:00", end: "19:00" },
+      { day: 1, dayHeb: "ב", start: "07:00", end: "15:00" },
+      { day: 2, dayHeb: "ג", start: "07:00", end: "11:00" },
+      { day: 3, dayHeb: "ד", start: "07:00", end: "18:30" },
+      { day: 4, dayHeb: "ה", start: "07:00", end: "14:00" },
+      { day: 5, dayHeb: "ו", start: "07:00", end: "13:30" }
+    ];
+
+    const DEFAULT_TRAVEL_TABLE = [];
+
+    const DEFAULT_TRIPS = [
+      { "date": "2026-01-02", "from": "צופים", "startTime": "07:05", "to": "אלפי מנשה", "endTime": "07:35" },
+      { "date": "2026-01-02", "from": "אלפי מנשה", "startTime": "11:35", "to": "צופים", "endTime": "12:05" },
+      { "date": "2026-01-04", "from": "קרני שומרון", "startTime": "06:10", "to": "אלפי מנשה", "endTime": "06:25" },
+      { "date": "2026-01-04", "from": "אלפי מנשה", "startTime": "06:40", "to": "רעננה", "endTime": "07:10" },
+      { "date": "2026-01-04", "from": "רעננה", "startTime": "11:30", "to": "אלפי מנשה", "endTime": "12:00" },
+      { "date": "2026-01-04", "from": "אלפי מנשה", "startTime": "12:00", "to": "קרני שומרון", "endTime": "12:30" },
+      { "date": "2026-01-05", "from": "קרני שומרון", "startTime": "07:15", "to": "אלון מורה", "endTime": "08:00" },
+      { "date": "2026-01-05", "from": "אלון מורה", "startTime": "14:00", "to": "קרני שומרון", "endTime": "15:00" },
+      { "date": "2026-01-07", "from": "קרני שומרון", "startTime": "07:30", "to": "עמנואל", "endTime": "07:50" },
+      { "date": "2026-01-07", "from": "עמנואל", "startTime": "12:30", "to": "קדומים", "endTime": "12:50" },
+      { "date": "2026-01-07", "from": "קדומים", "startTime": "18:10", "to": "קרני שומרון", "endTime": "18:40" },
+      { "date": "2026-01-08", "from": "אלפי מנשה", "startTime": "08:00", "to": "עמנואל", "endTime": "08:30" },
+      { "date": "2026-01-08", "from": "עמנואל", "startTime": "13:45", "to": "אלפי מנשה", "endTime": "14:15" },
+      { "date": "2026-01-09", "from": "קרני שומרון", "startTime": "07:00", "to": "קדומים", "endTime": "07:20" },
+      { "date": "2026-01-09", "from": "קדומים", "startTime": "11:00", "to": "קרני שומרון", "endTime": "11:30" },
+      { "date": "2026-01-09", "from": "כפר סבא", "startTime": "07:00", "to": "אלפי מנשה", "endTime": "07:30" },
+      { "date": "2026-01-09", "from": "אלפי מנשה", "startTime": "07:30", "to": "קדומים", "endTime": "08:00" },
+      { "date": "2026-01-09", "from": "קדומים", "startTime": "12:00", "to": "אלפי מנשה", "endTime": "12:30" },
+      { "date": "2026-01-09", "from": "צופים", "startTime": "07:05", "to": "אלפי מנשה", "endTime": "07:35" },
+      { "date": "2026-01-09", "from": "אלפי מנשה", "startTime": "11:35", "to": "צופים", "endTime": "12:05" },
+      { "date": "2026-01-09", "from": "אלפי מנשה", "startTime": "12:30", "to": "כפר סבא", "endTime": "13:00" },
+      { "date": "2026-01-11", "from": "קרני שומרון", "startTime": "06:10", "to": "אלפי מנשה", "endTime": "06:25" },
+      { "date": "2026-01-11", "from": "אלפי מנשה", "startTime": "06:40", "to": "רעננה", "endTime": "07:10" },
+      { "date": "2026-01-11", "from": "רעננה", "startTime": "11:30", "to": "אלפי מנשה", "endTime": "12:00" },
+      { "date": "2026-01-11", "from": "אלפי מנשה", "startTime": "12:00", "to": "קרני שומרון", "endTime": "12:30" },
+      { "date": "2026-01-12", "from": "אלפי מנשה", "startTime": "07:00", "to": "אלון מורה", "endTime": "08:00" },
+      { "date": "2026-01-12", "from": "אלון מורה", "startTime": "11:00", "to": "אלפי מנשה", "endTime": "12:00" },
+      { "date": "2026-01-12", "from": "קרני שומרון", "startTime": "07:15", "to": "אלון מורה", "endTime": "08:00" },
+      { "date": "2026-01-12", "from": "אלון מורה", "startTime": "14:00", "to": "קרני שומרון", "endTime": "15:00" },
+      { "date": "2026-01-12", "from": "צור יצחק", "startTime": "14:00", "to": "אלפי מנשה", "endTime": "14:30" },
+      { "date": "2026-01-12", "from": "אלפי מנשה", "startTime": "14:30", "to": "עמנואל", "endTime": "15:00" },
+      { "date": "2026-01-12", "from": "עמנואל", "startTime": "19:00", "to": "אלפי מנשה", "endTime": "19:30" },
+      { "date": "2026-01-12", "from": "אלפי מנשה", "startTime": "19:30", "to": "צור יצחק", "endTime": "00:00" },
+      { "date": "2026-01-13", "from": "כפר סבא", "startTime": "07:00", "to": "אלפי מנשה", "endTime": "07:30" },
+      { "date": "2026-01-13", "from": "אלפי מנשה", "startTime": "07:30", "to": "קדומים", "endTime": "08:00" },
+      { "date": "2026-01-13", "from": "קדומים", "startTime": "12:00", "to": "אלפי מנשה", "endTime": "12:30" },
+      { "date": "2026-01-13", "from": "אלפי מנשה", "startTime": "12:30", "to": "כפר סבא", "endTime": "13:00" },
+      { "date": "2026-01-14", "from": "קרני שומרון", "startTime": "07:30", "to": "עמנואל", "endTime": "07:50" },
+      { "date": "2026-01-14", "from": "עמנואל", "startTime": "12:30", "to": "קדומים", "endTime": "12:50" },
+      { "date": "2026-01-14", "from": "קדומים", "startTime": "18:10", "to": "קרני שומרון", "endTime": "18:40" },
+      { "date": "2026-01-16", "from": "כפר סבא", "startTime": "07:00", "to": "אלפי מנשה", "endTime": "07:30" },
+      { "date": "2026-01-16", "from": "אלפי מנשה", "startTime": "07:30", "to": "קדומים", "endTime": "08:00" },
+      { "date": "2026-01-16", "from": "קדומים", "startTime": "12:00", "to": "אלפי מנשה", "endTime": "12:30" },
+      { "date": "2026-01-16", "from": "אלפי מנשה", "startTime": "12:30", "to": "כפר סבא", "endTime": "13:00" },
+      { "date": "2026-01-16", "from": "צופים", "startTime": "07:05", "to": "אלפי מנשה", "endTime": "07:35" },
+      { "date": "2026-01-16", "from": "אלפי מנשה", "startTime": "11:35", "to": "צופים", "endTime": "12:05" },
+      { "date": "2026-01-18", "from": "קרני שומרון", "startTime": "06:10", "to": "אלפי מנשה", "endTime": "06:25" },
+      { "date": "2026-01-18", "from": "אלפי מנשה", "startTime": "06:40", "to": "רעננה", "endTime": "07:10" },
+      { "date": "2026-01-18", "from": "רעננה", "startTime": "11:30", "to": "אלפי מנשה", "endTime": "12:00" },
+      { "date": "2026-01-18", "from": "אלפי מנשה", "startTime": "12:00", "to": "קרני שומרון", "endTime": "12:30" },
+      { "date": "2026-01-19", "from": "קרני שומרון", "startTime": "07:15", "to": "אלון מורה", "endTime": "08:00" },
+      { "date": "2026-01-19", "from": "אלון מורה", "startTime": "14:00", "to": "קרני שומרון", "endTime": "15:00" },
+      { "date": "2026-01-19", "from": "כפר סבא", "startTime": "14:00", "to": "אלפי מנשה", "endTime": "14:30" },
+      { "date": "2026-01-19", "from": "אלפי מנשה", "startTime": "14:30", "to": "עמנואל", "endTime": "15:00" },
+      { "date": "2026-01-19", "from": "עמנואל", "startTime": "19:00", "to": "אלפי מנשה", "endTime": "19:30" },
+      { "date": "2026-01-19", "from": "אלפי מנשה", "startTime": "19:30", "to": "כפר סבא", "endTime": "20:00" },
+      { "date": "2026-01-20", "from": "כפר סבא", "startTime": "07:00", "to": "אלפי מנשה", "endTime": "07:30" },
+      { "date": "2026-01-20", "from": "אלפי מנשה", "startTime": "07:30", "to": "קדומים", "endTime": "08:00" },
+      { "date": "2026-01-20", "from": "קדומים", "startTime": "12:00", "to": "קרני שומרון", "endTime": "12:30" },
+      { "date": "2026-01-20", "from": "קרני שומרון", "startTime": "15:00", "to": "אלפי מנשה", "endTime": "15:30" },
+      { "date": "2026-01-20", "from": "אלפי מנשה", "startTime": "15:30", "to": "כפר סבא", "endTime": "16:00" },
+      { "date": "2026-01-21", "from": "קרני שומרון", "startTime": "07:30", "to": "עמנואל", "endTime": "07:50" },
+      { "date": "2026-01-21", "from": "עמנואל", "startTime": "12:30", "to": "קדומים", "endTime": "12:50" },
+      { "date": "2026-01-21", "from": "קדומים", "startTime": "18:10", "to": "קרני שומרון", "endTime": "18:40" },
+      { "date": "2026-01-22", "from": "כפר סבא", "startTime": "07:00", "to": "אלפי מנשה", "endTime": "07:30" },
+      { "date": "2026-01-22", "from": "אלפי מנשה", "startTime": "07:30", "to": "קרני שומרון", "endTime": "08:00" },
+      { "date": "2026-01-22", "from": "קרני שומרון", "startTime": "10:30", "to": "קדומים", "endTime": "11:00" },
+      { "date": "2026-01-22", "from": "קדומים", "startTime": "13:00", "to": "אלפי מנשה", "endTime": "13:30" },
+      { "date": "2026-01-22", "from": "אלפי מנשה", "startTime": "13:30", "to": "כפר סבא", "endTime": "14:00" },
+      { "date": "2026-01-23", "from": "קרני שומרון", "startTime": "07:00", "to": "קדומים", "endTime": "07:20" },
+      { "date": "2026-01-23", "from": "קדומים", "startTime": "11:00", "to": "קרני שומרון", "endTime": "11:30" },
+      { "date": "2026-01-23", "from": "צופים", "startTime": "07:05", "to": "אלפי מנשה", "endTime": "07:35" },
+      { "date": "2026-01-23", "from": "אלפי מנשה", "startTime": "11:35", "to": "צופים", "endTime": "12:05" },
+      { "date": "2026-01-25", "from": "קרני שומרון", "startTime": "06:10", "to": "אלפי מנשה", "endTime": "06:25" },
+      { "date": "2026-01-25", "from": "אלפי מנשה", "startTime": "06:40", "to": "רעננה", "endTime": "07:10" },
+      { "date": "2026-01-25", "from": "רעננה", "startTime": "11:30", "to": "אלפי מנשה", "endTime": "12:00" },
+      { "date": "2026-01-25", "from": "אלפי מנשה", "startTime": "12:00", "to": "קרני שומרון", "endTime": "12:30" },
+      { "date": "2026-01-26", "from": "קרני שומרון", "startTime": "07:15", "to": "אלון מורה", "endTime": "08:00" },
+      { "date": "2026-01-26", "from": "אלון מורה", "startTime": "14:00", "to": "קרני שומרון", "endTime": "15:00" },
+      { "date": "2026-01-27", "from": "כפר סבא", "startTime": "07:00", "to": "אלפי מנשה", "endTime": "07:30" },
+      { "date": "2026-01-27", "from": "אלפי מנשה", "startTime": "07:30", "to": "קרני שומרון", "endTime": "08:00" },
+      { "date": "2026-01-27", "from": "קרני שומרון", "startTime": "10:00", "to": "קדומים", "endTime": "10:30" },
+      { "date": "2026-01-27", "from": "קדומים", "startTime": "13:00", "to": "אלפי מנשה", "endTime": "13:30" },
+      { "date": "2026-01-27", "from": "אלפי מנשה", "startTime": "13:30", "to": "כפר סבא", "endTime": "14:00" },
+      { "date": "2026-01-28", "from": "כפר סבא", "startTime": "07:00", "to": "אלפי מנשה", "endTime": "07:30" },
+      { "date": "2026-01-28", "from": "אלפי מנשה", "startTime": "07:30", "to": "קרני שומרון", "endTime": "08:00" },
+      { "date": "2026-01-28", "from": "קרני שומרון", "startTime": "10:00", "to": "קדומים", "endTime": "10:30" },
+      { "date": "2026-01-28", "from": "קדומים", "startTime": "13:00", "to": "אלפי מנשה", "endTime": "13:30" },
+      { "date": "2026-01-28", "from": "אלפי מנשה", "startTime": "13:30", "to": "כפר סבא", "endTime": "14:00" },
+      { "date": "2026-01-28", "from": "קרני שומרון", "startTime": "07:30", "to": "עמנואל", "endTime": "07:50" },
+      { "date": "2026-01-28", "from": "עמנואל", "startTime": "12:30", "to": "קדומים", "endTime": "12:50" },
+      { "date": "2026-01-28", "from": "קדומים", "startTime": "18:10", "to": "קרני שומרון", "endTime": "18:40" },
+      { "date": "2026-01-30", "from": "צופים", "startTime": "07:05", "to": "אלפי מנשה", "endTime": "07:35" },
+      { "date": "2026-01-30", "from": "אלפי מנשה", "startTime": "11:35", "to": "צופים", "endTime": "12:05" }
+    ];
+
+    // ============================================================
+    // STATE
+    // ============================================================
+
+    let trips = [];
+    let travelTable = [];
+    let workingHours = [];
+    let computedTrips = []; // results after classification
+
+    const STORAGE_KEY = 'zamudbaltam';
+
+    // --- Location normalization (merge duplicate spellings) ---
+    const LOCATION_ALIASES = {
+      'אלפ"ש': 'אלפי מנשה',
+      'עימנואל': 'עמנואל',
+      'הדר שומרון': 'הדר השומרון',
+      'ש.שומרון': 'שבי שומרון',
+      'מרפאות בשומרון': 'מרפאות השומרון',
+      'כ"ס': 'כפר סבא',
+      'כפ"ס': 'כפר סבא',
+      'קרנ"ש': 'קרני שומרון',
+      'גינות': 'גינות שומרון'
+    };
+
+    function normLoc(name) {
+      return LOCATION_ALIASES[name] || name;
+    }
+
+    function normalizeAndDedup() {
+      // Normalize all location names in trips
+      for (const t of trips) { t.from = normLoc(t.from); t.to = normLoc(t.to); }
+      // Normalize all location names in travel table
+      for (const t of travelTable) { t.from = normLoc(t.from); t.to = normLoc(t.to); }
+      // Deduplicate travel table (keep first occurrence of each from+to pair, preserve check flag)
+      const seen = new Map();
+      travelTable = travelTable.filter(t => {
+        const key = t.from + '→' + t.to;
+        if (seen.has(key)) {
+          // If any duplicate has check flag, propagate it to the kept entry
+          if (t.check) seen.get(key).check = true;
+          return false;
+        }
+        seen.set(key, t);
+        return true;
+      });
+    }
+
+    const GS_URL = "https://script.google.com/macros/s/AKfycbwiWxkj7PvGc9JjbNhHwosC6nnLw_B4uDaWMHOtoed1KfVkkpviQHPbjSj35VF6Ev6hiA/exec";
+    // Basic loading overlay UI
+    function showLoading() {
+      let overlay = document.getElementById('loadingOverlay');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'loadingOverlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(255,255,255,0.8);z-index:9999;display:flex;justify-content:center;align-items:center;font-size:24px;font-weight:bold;color:#217346;';
+        overlay.textContent = 'טוען נתונים...';
+        document.body.appendChild(overlay);
+      }
+      overlay.style.display = 'flex';
+    }
+    function hideLoading() {
+      const overlay = document.getElementById('loadingOverlay');
+      if (overlay) overlay.style.display = 'none';
+    }
+
+    async function loadData() {
+      showLoading();
+      try {
+        const response = await fetch(GS_URL);
+        if (response.ok) {
+          const data = await response.json();
+          trips = data.trips || JSON.parse(JSON.stringify(DEFAULT_TRIPS));
+          travelTable = data.travelTable || JSON.parse(JSON.stringify(DEFAULT_TRAVEL_TABLE));
+          workingHours = data.workingHours || JSON.parse(JSON.stringify(DEFAULT_WORKING_HOURS));
+        }
+      } catch (e) {
+        console.error("Failed to load from Google Sheets:", e);
+        alert("שגיאה בטעינת נתונים מהענן. טוען נתוני ברירת מחדל.");
+        trips = JSON.parse(JSON.stringify(DEFAULT_TRIPS));
+        travelTable = JSON.parse(JSON.stringify(DEFAULT_TRAVEL_TABLE));
+        workingHours = JSON.parse(JSON.stringify(DEFAULT_WORKING_HOURS));
+      }
+      normalizeAndDedup();
+      hideLoading();
+      renderAll();
+    }
+
+    let saveTimeout = null;
+    async function saveData() {
+      // Use a slight debounce so typing doesn't spam the server
+      if (saveTimeout) clearTimeout(saveTimeout);
+
+      saveTimeout = setTimeout(async () => {
+        const payload = JSON.stringify({ trips, travelTable, workingHours });
+        try {
+          const resp = await fetch(GS_URL, {
+            method: "POST",
+            body: payload
+          });
+          console.log("Saved successfully");
+        } catch (err) {
+          console.error("Failed to save:", err);
+          alert("שגיאה בשמירת נתונים לענן.");
+        }
+      }, 1000);
+    }
+    function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+    // ============================================================
+    // COMPUTATION ENGINE
+    // ============================================================
+
+    const HEB_DAYS = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
+
+    // Date format: internal YYYY-MM-DD ↔ display DD-MM-YYYY
+    function toDisplayDate(iso) {
+      if (!iso) return '';
+      const [y, m, d] = iso.split('-');
+      return d + '-' + m + '-' + y;
+    }
+    function fromDisplayDate(dmy) {
+      if (!dmy) return '';
+      const parts = dmy.split('-');
+      if (parts.length !== 3) return '';
+      return parts[2] + '-' + parts[1] + '-' + parts[0];
+    }
+    function todayDisplay() {
+      const d = new Date();
+      return String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear();
+    }
+
+    function openDatePicker(textId, pickerId) {
+      const picker = document.getElementById(pickerId);
+      const textInput = document.getElementById(textId);
+      picker.value = fromDisplayDate(textInput.value) || '';
+      picker.showPicker();
+      picker.onchange = function () {
+        textInput.value = toDisplayDate(this.value);
+        textInput.dispatchEvent(new Event('change'));
+      };
+    }
+
+    let timeDropdown = null;
+    function closeTimeDropdown() { if (timeDropdown) { timeDropdown.remove(); timeDropdown = null; } }
+
+    function openTimePicker(textId) {
+      closeTimeDropdown();
+      const textInput = document.getElementById(textId);
+      const rect = textInput.getBoundingClientRect();
+
+      timeDropdown = document.createElement('div');
+      timeDropdown.className = 'time-dropdown';
+      timeDropdown.style.position = 'fixed';
+      timeDropdown.style.top = rect.bottom + 'px';
+      timeDropdown.style.left = rect.left + 'px';
+
+      // Generate 24h times in 5-minute intervals
+      for (let h = 0; h < 24; h++) {
+        for (let m = 0; m < 60; m += 5) {
+          const t = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+          const item = document.createElement('div');
+          item.textContent = t;
+          if (t === textInput.value) item.classList.add('selected');
+          item.onmousedown = function (e) {
+            e.preventDefault();
+            textInput.value = t;
+            textInput.dispatchEvent(new Event('change'));
+            closeTimeDropdown();
+          };
+          timeDropdown.appendChild(item);
+        }
+      }
+
+      document.body.appendChild(timeDropdown);
+
+      // Scroll to current value
+      const sel = timeDropdown.querySelector('.selected');
+      if (sel) sel.scrollIntoView({ block: 'center' });
+
+      // Close on outside click
+      setTimeout(() => document.addEventListener('mousedown', function handler(e) {
+        if (!timeDropdown || !timeDropdown.contains(e.target)) {
+          closeTimeDropdown();
+          document.removeEventListener('mousedown', handler);
+        }
+      }), 0);
+    }
+
+    // Parse time input: "0705" → "07:05", "735" → "07:35", "07:05" stays
+    function parseTime(val) {
+      if (!val) return '';
+      val = val.trim();
+      if (/^\d{1,2}:\d{2}$/.test(val)) val = val.padStart(5, '0');
+      else {
+        const digits = val.replace(/\D/g, '');
+        if (digits.length === 3) val = '0' + digits[0] + ':' + digits.slice(1);
+        else if (digits.length === 4) val = digits.slice(0, 2) + ':' + digits.slice(2);
+      }
+      // Validate HH:MM
+      const m = val.match(/^(\d{2}):(\d{2})$/);
+      if (!m) return null;
+      const h = parseInt(m[1]), mm = parseInt(m[2]);
+      if (h > 23 || mm > 59) return null;
+      return val;
+    }
+
+    // Auto-insert ":" while typing time
+    function timeInputHandler(e) {
+      const input = e.target;
+      let v = input.value.replace(/[^\d:]/g, '');
+      // If user typed 2 digits without colon, auto-add colon
+      if (/^\d{2}$/.test(v) && e.inputType !== 'deleteContentBackward') {
+        input.value = v + ':';
+      }
+      // Limit to 5 chars (HH:MM)
+      if (v.length > 5) input.value = v.slice(0, 5);
+    }
+
+    function timeToMin(timeStr) {
+      if (!timeStr) return 0;
+      const [h, m] = timeStr.split(':').map(Number);
+      return h * 60 + m;
+    }
+
+    function minToTime(min) {
+      if (min < 0) min = 0;
+      const h = Math.floor(min / 60);
+      const m = min % 60;
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    }
+
+    function minToHM(min) {
+      const h = Math.floor(min / 60);
+      const m = Math.round(min % 60);
+      return `${h}:${String(m).padStart(2, '0')}`;
+    }
+
+    function getDayOfWeek(dateStr) {
+      const d = new Date(dateStr + 'T00:00:00');
+      return d.getDay(); // 0=Sun, 1=Mon, ...
+    }
+
+    function getHebDay(dateStr) {
+      return HEB_DAYS[getDayOfWeek(dateStr)];
+    }
+
+    function routeExists(from, to) {
+      if (from === to) return true;
+      for (const entry of travelTable) {
+        if ((entry.from === from && entry.to === to) || (entry.from === to && entry.to === from)) return true;
+      }
+      return false;
+    }
+
+    function routeIsCheck(from, to) {
+      for (const entry of travelTable) {
+        if ((entry.from === from && entry.to === to) || (entry.from === to && entry.to === from)) {
+          return !!entry.check;
+        }
+      }
+      return false;
+    }
+
+    function lookupTravelTime(from, to, isMorning) {
+      for (const entry of travelTable) {
+        if ((entry.from === from && entry.to === to) || (entry.from === to && entry.to === from)) {
+          return isMorning ? entry.morningMin : entry.afternoonMin;
+        }
+      }
+      return null;
+    }
+
+    function lookupTripPrice(from, to) {
+      for (const entry of travelTable) {
+        if ((entry.from === from && entry.to === to) || (entry.from === to && entry.to === from)) {
+          return entry.check ? 0 : (entry.price || 0);
+        }
+      }
+      return 0;
+    }
+
+    function getWorkingHoursForDay(dayOfWeek) {
+      // dayOfWeek: 0=Sun, 1=Mon, ...
+      // workingHours indexed: 0=Sun(א), 1=Mon(ב), etc.
+      if (dayOfWeek === 6) return null; // Saturday - no working hours
+      return workingHours[dayOfWeek];
+    }
+
+    function classifyTrips() {
+      // Sort trips by date ASC, startTime ASC
+      const sorted = trips.map((t, idx) => ({ ...t, origIdx: idx }));
+      sorted.sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        return a.startTime.localeCompare(b.startTime);
+      });
+
+      const results = [];
+      let cumulativeZMinutes = 0;
+
+      for (let i = 0; i < sorted.length; i++) {
+        const trip = sorted[i];
+        const startMin = timeToMin(trip.startTime);
+        const rawEndMin = timeToMin(trip.endTime); // 00:00 = 0 (matches Excel TIMEVALUE)
+        const endMinForDuration = rawEndMin === 0 && startMin > 0 ? 1440 : rawEndMin;
+        const durationMin = endMinForDuration - startMin;
+        const dayOfWeek = getDayOfWeek(trip.date);
+        const hebDay = HEB_DAYS[dayOfWeek];
+        const wh = getWorkingHoursForDay(dayOfWeek);
+
+        let code = 'Z'; // default
+
+        // Step 1: Check BML (outside working hours)
+        // Uses raw time values to match Excel TIMEVALUE behavior
+        // (00:00 is treated as 0, not 1440)
+        if (wh) {
+          const whStart = timeToMin(wh.start);
+          const whEnd = timeToMin(wh.end);
+          if (startMin < whStart || rawEndMin > whEnd) {
+            code = 'BML';
+          }
+        } else {
+          // Saturday or no schedule defined
+          code = 'BML';
+        }
+
+        // Step 2: If within hours, check Z vs B
+        if (code !== 'BML') {
+          // Find previous Z trip on same day
+          let prevZTrip = null;
+          for (let j = i - 1; j >= 0; j--) {
+            if (results[j].date === trip.date && results[j].code === 'Z') {
+              prevZTrip = results[j];
+              break;
+            }
+          }
+
+          if (prevZTrip) {
+            const prevRawEnd = timeToMin(prevZTrip.endTime);
+            const prevEndMin = prevRawEnd === 0 && timeToMin(prevZTrip.startTime) > 0 ? 1440 : prevRawEnd;
+            const isMorning = startMin < 720; // before 12:00
+            const travelMin = lookupTravelTime(prevZTrip.to, trip.from, isMorning);
+
+            if (travelMin !== null) {
+              // Formula: if (prevEnd - currentStart + travelTime) > 0 → B, else → Z
+              if (prevEndMin - startMin + travelMin > 0) {
+                code = 'B';
+              } else {
+                code = 'Z';
+              }
+            }
+            // If no travel time found, default stays Z
+          }
+          // If no previous Z trip, default stays Z
+        }
+
+        // Step 3: 210-hour cap check
+        if (code === 'Z') {
+          cumulativeZMinutes += durationMin;
+          if (cumulativeZMinutes > 210 * 60) {
+            code = 'B120';
+          }
+        }
+
+        // Price
+        const price = (code === 'Z') ? 0 : lookupTripPrice(trip.from, trip.to);
+
+        const categoryLabels = {
+          'Z': 'צמוד',
+          'B': 'בלת"ם',
+          'BML': 'בלת"ם מחוץ לשעות',
+          'B120': 'בלת"ם 120'
+        };
+
+        results.push({
+          ...trip,
+          sortIdx: i,
+          durationMin,
+          hebDay,
+          code,
+          category: categoryLabels[code],
+          price,
+          durationStr: minToHM(durationMin),
+          isCheck: routeIsCheck(trip.from, trip.to)
+        });
+      }
+
+      computedTrips = results;
+      return results;
+    }
+
+    // ============================================================
+    // UI RENDERING
+    // ============================================================
+
+    // Build a date→colorIndex map for day striping
+    function buildDayColorMap(results) {
+      const dateSet = [...new Set(results.map(r => r.date))];
+      const map = {};
+      dateSet.forEach((d, i) => { map[d] = i % 12; });
+      return map;
+    }
+
+    function renderTrips() {
+      const results = classifyTrips();
+      const tbody = document.getElementById('tripsBody');
+      const dayColors = buildDayColorMap(results);
+
+      // Add-new row at the top
+      let html = `<tr class="add-row">` +
+        `<td class="del-cell"></td>` +
+        `<td class="computed" style="color:#999">+</td>` +
+        `<td><div class="date-cell"><input type="text" id="newDate" placeholder="DD-MM-YYYY"><input type="date" id="newDatePick"><span class="date-pick" onclick="openDatePicker('newDate','newDatePick')">&#128197;</span></div></td>` +
+        `<td></td>` +
+        `<td style="position:relative"><input type="text" id="newFrom" placeholder="ממקום" autocomplete="off"><div class="autocomplete-list" id="acFrom"></div></td>` +
+        `<td><div class="time-cell"><input type="text" id="newStart" placeholder="HH:MM" oninput="timeInputHandler(event)"><span class="time-pick" onclick="openTimePicker('newStart')">&#128339;</span></div></td>` +
+        `<td style="position:relative"><input type="text" id="newTo" placeholder="למקום" autocomplete="off"><div class="autocomplete-list" id="acTo"></div></td>` +
+        `<td><div class="time-cell"><input type="text" id="newEnd" placeholder="HH:MM" oninput="timeInputHandler(event)"><span class="time-pick" onclick="openTimePicker('newEnd')">&#128339;</span></div></td>` +
+        `<td colspan="4"><button class="btn btn-add" onclick="addTrip()" style="font-size:11px">+ הוסף</button></td>` +
+        `</tr>`;
+
+      // Data rows with inline editing
+      for (let i = 0; i < results.length; i++) {
+        const r = results[i];
+        const dc = dayColors[r.date];
+        const oi = r.origIdx;
+        html += `<tr class="day-${dc}">` +
+          `<td class="del-cell"><span class="del-x" onclick="deleteTrip(${oi})" title="מחק">×</span>${r.isCheck ? '<span class="check-warn" title="לבדיקה">&#9888;</span>' : ''}</td>` +
+          `<td class="computed">${i + 1}</td>` +
+          `<td class="editable"><div class="date-cell"><input type="text" id="dt${oi}" value="${toDisplayDate(r.date)}" onchange="cellEdit(${oi},'date',fromDisplayDate(this.value))" placeholder="DD-MM-YYYY"><input type="date" id="dp${oi}"><span class="date-pick" onclick="openDatePicker('dt${oi}','dp${oi}')">&#128197;</span></div></td>` +
+          `<td class="computed">${r.hebDay}</td>` +
+          `<td class="editable"><input type="text" value="${esc(r.from)}" onchange="cellEdit(${oi},'from',this.value)" onfocus="showCellAC(this,${oi},'from')" autocomplete="off"></td>` +
+          `<td class="editable"><div class="time-cell"><input type="text" id="st${oi}" value="${r.startTime}" onchange="cellEdit(${oi},'startTime',this.value)" oninput="timeInputHandler(event)" placeholder="HH:MM"><span class="time-pick" onclick="openTimePicker('st${oi}')">&#128339;</span></div></td>` +
+          `<td class="editable"><input type="text" value="${esc(r.to)}" onchange="cellEdit(${oi},'to',this.value)" onfocus="showCellAC(this,${oi},'to')" autocomplete="off"></td>` +
+          `<td class="editable"><div class="time-cell"><input type="text" id="et${oi}" value="${r.endTime}" onchange="cellEdit(${oi},'endTime',this.value)" oninput="timeInputHandler(event)" placeholder="HH:MM"><span class="time-pick" onclick="openTimePicker('et${oi}')">&#128339;</span></div></td>` +
+          `<td class="computed">${r.durationStr}</td>` +
+          `<td class="computed code-${r.code}">${r.code}</td>` +
+          `<td class="computed">${r.category}</td>` +
+          `<td class="computed">${r.isCheck ? 'בדיקה' : (r.code === 'Z' ? '' : r.price + ' ₪')}</td>` +
+          `</tr>`;
+      }
+
+      tbody.innerHTML = html;
+
+      // Re-setup autocomplete on the new-row inputs
+      setupAutocomplete('newFrom', 'acFrom');
+      setupAutocomplete('newTo', 'acTo');
+
+      // Enter in end-time field triggers addTrip
+      const newEnd = document.getElementById('newEnd');
+      if (newEnd) newEnd.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); addTrip(); }
+      });
+
+      // Set default date
+      const nd = document.getElementById('newDate');
+      if (nd && !nd.value) nd.value = todayDisplay();
+
+      // Update summary
+      let totalZMin = 0, totalBPrice = 0, countZ = 0, countB = 0, countBML = 0, countB120 = 0;
+      for (const r of results) {
+        if (r.code === 'Z') { totalZMin += r.durationMin; countZ++; }
+        else if (r.code === 'B') { totalBPrice += r.price; countB++; }
+        else if (r.code === 'BML') { totalBPrice += r.price; countBML++; }
+        else if (r.code === 'B120') { totalBPrice += r.price; countB120++; }
+      }
+
+      document.getElementById('totalTrips').textContent = results.length;
+      document.getElementById('totalZamud').textContent = minToHM(totalZMin);
+      document.getElementById('totalBaltam').textContent = totalBPrice + ' ₪';
+      document.getElementById('countZ').textContent = countZ;
+      document.getElementById('countB').textContent = countB;
+      document.getElementById('countBML').textContent = countBML;
+      document.getElementById('countB120').textContent = countB120;
+    }
+
+    function formatDate(dateStr) {
+      const [y, m, d] = dateStr.split('-');
+      return `${d}/${m}/${y}`;
+    }
+
+    function renderTravel() {
+      const filter = (document.getElementById('travelFilter')?.value || '').trim();
+      const filtered = (filter
+        ? travelTable.filter(t => t.from.includes(filter) || t.to.includes(filter))
+        : [...travelTable]
+      ).sort((a, b) => a.from.localeCompare(b.from, 'he') || a.to.localeCompare(b.to, 'he'));
+
+      const tbody = document.getElementById('travelBody');
+
+      // Add-new row at the top
+      let html = `<tr class="add-row">` +
+        `<td class="del-cell"></td>` +
+        `<td style="color:#999">+</td>` +
+        `<td style="position:relative"><input type="text" id="newTravelFrom" placeholder="מישוב" autocomplete="off"><div class="autocomplete-list" id="acTravelFrom"></div></td>` +
+        `<td style="position:relative"><input type="text" id="newTravelTo" placeholder="לישוב" autocomplete="off"><div class="autocomplete-list" id="acTravelTo"></div></td>` +
+        `<td><input type="number" id="newMorning" min="0" style="width:50px" placeholder="0"></td>` +
+        `<td><input type="number" id="newAfternoon" min="0" style="width:50px" placeholder="0"></td>` +
+        `<td><div class="toggle-btn" id="newTravelTypeToggle" onclick="this.dataset.val = this.dataset.val === 'true' ? 'false' : 'true'; renderTravelToggleUI(this);"><div class="toggle-opt selected" data-bool="false">נסיעה</div><div class="toggle-opt bodek" data-bool="true">לבדיקה</div></div></td>` +
+        `<td><input type="number" id="newPrice" min="0" style="width:50px" placeholder="0">` +
+        ` <button class="btn btn-add" onclick="addTravelEntry()" style="font-size:11px">+ הוסף</button></td>` +
+        `</tr>`;
+
+      for (let i = 0; i < filtered.length; i++) {
+        const t = filtered[i];
+        const ri = travelTable.indexOf(t);
+        const priceStyle = t.check ? 'color:#999;text-decoration:line-through;' : '';
+        html += `<tr>` +
+          `<td class="del-cell"><span class="del-x" onclick="deleteTravelEntry(${ri})" title="מחק">×</span></td>` +
+          `<td>${i + 1}</td>` +
+          `<td class="editable"><input type="text" value="${esc(t.from)}" onchange="travelCellEdit(${ri},'from',this.value)"></td>` +
+          `<td class="editable"><input type="text" value="${esc(t.to)}" onchange="travelCellEdit(${ri},'to',this.value)"></td>` +
+          `<td class="editable"><input type="number" value="${t.morningMin}" min="0" style="width:55px" onchange="travelCellEdit(${ri},'morningMin',+this.value)"></td>` +
+          `<td class="editable"><input type="number" value="${t.afternoonMin}" min="0" style="width:55px" onchange="travelCellEdit(${ri},'afternoonMin',+this.value)"></td>` +
+          `<td class="editable"><div class="toggle-btn" onclick="travelCellEdit(${ri},'check',!${t.check})"><div class="toggle-opt ${!t.check ? 'selected' : ''}">נסיעה</div><div class="toggle-opt bodek ${t.check ? 'selected' : ''}">לבדיקה</div></div></td>` +
+          `<td class="editable"><input type="number" value="${t.price}" min="0" style="width:55px;${priceStyle}" onchange="travelCellEdit(${ri},'price',+this.value)" ${t.check ? 'disabled' : ''}></td>` +
+          `</tr>`;
+      }
+
+      tbody.innerHTML = html;
+      setupAutocomplete('newTravelFrom', 'acTravelFrom');
+      setupAutocomplete('newTravelTo', 'acTravelTo');
+
+      // Initialize new toggle state properly
+      const newToggle = document.getElementById('newTravelTypeToggle');
+      if (newToggle) {
+        newToggle.dataset.val = 'false';
+        renderTravelToggleUI(newToggle);
+      }
+    }
+
+    function renderTravelToggleUI(el) {
+      const isCheck = el.dataset.val === 'true';
+      const opts = el.querySelectorAll('.toggle-opt');
+      opts[0].classList.toggle('selected', !isCheck);
+      opts[1].classList.toggle('selected', isCheck);
+    }
+
+    function renderHours() {
+      const tbody = document.getElementById('hoursBody');
+      let totalMin = 0;
+      tbody.innerHTML = workingHours.map((h, i) => {
+        const dayMin = timeToMin(h.end) - timeToMin(h.start);
+        totalMin += dayMin;
+        return `<tr>` +
+          `<td style="font-weight:700">${h.dayHeb}</td>` +
+          `<td class="editable"><div class="time-cell"><input type="text" id="hs${i}" value="${h.start}" onchange="updateHours(${i},'start',this.value)" oninput="timeInputHandler(event)" placeholder="HH:MM"><span class="time-pick" onclick="openTimePicker('hs${i}')">&#128339;</span></div></td>` +
+          `<td class="editable"><div class="time-cell"><input type="text" id="he${i}" value="${h.end}" onchange="updateHours(${i},'end',this.value)" oninput="timeInputHandler(event)" placeholder="HH:MM"><span class="time-pick" onclick="openTimePicker('he${i}')">&#128339;</span></div></td>` +
+          `<td class="computed">${minToHM(dayMin)}</td>` +
+          `</tr>`;
+      }).join('');
+      tbody.innerHTML += `<tr style="font-weight:700;border-top:2px solid #333"><td>סה"כ</td><td></td><td></td><td>${minToHM(totalMin)}</td></tr>`;
+    }
+
+    function renderGantt() {
+      const results = classifyTrips();
+      const dayFilter = parseInt(document.getElementById('ganttDay').value);
+
+      // Filter by day of week (-1 = all)
+      const filtered = dayFilter === -1
+        ? results
+        : results.filter(r => getDayOfWeek(r.date) === dayFilter);
+
+      // Time slots: 06:00 to 20:00 in 15-minute intervals
+      const slotStart = 6 * 60;  // 06:00
+      const slotEnd = 20 * 60;   // 20:00
+      const slotStep = 15;
+      const slots = [];
+      for (let m = slotStart; m < slotEnd; m += slotStep) {
+        slots.push(m);
+      }
+
+      // Build header
+      const thead = document.getElementById('ganttHead');
+      let headHtml = '<tr><th class="gantt-info">מספר ואוצ׳ר</th><th class="gantt-info">תאריך</th><th class="gantt-info">ממקום</th><th class="gantt-info">למקום</th><th class="gantt-info">התחלה</th><th class="gantt-info">סיום</th>';
+      for (const m of slots) {
+        const h = String(Math.floor(m / 60)).padStart(2, '0');
+        const mm = String(m % 60).padStart(2, '0');
+        // Show label only on the hour
+        headHtml += `<th class="gantt-bar">${m % 60 === 0 ? h + ':' + mm : ''}</th>`;
+      }
+      headHtml += '</tr>';
+      thead.innerHTML = headHtml;
+
+      // Build rows
+      let bodyHtml = '';
+      for (let i = 0; i < filtered.length; i++) {
+        const r = filtered[i];
+        const startMin = timeToMin(r.startTime);
+        const rawEnd = timeToMin(r.endTime);
+        const endMin = rawEnd === 0 && startMin > 0 ? 1440 : rawEnd;
+
+        bodyHtml += `<tr>`;
+        bodyHtml += `<td class="gantt-info">${r.sortIdx + 1}</td>`;
+        bodyHtml += `<td class="gantt-info">${toDisplayDate(r.date)}</td>`;
+        bodyHtml += `<td class="gantt-info">${esc(r.from)}</td>`;
+        bodyHtml += `<td class="gantt-info">${esc(r.to)}</td>`;
+        bodyHtml += `<td class="gantt-info">${r.startTime}</td>`;
+        bodyHtml += `<td class="gantt-info">${r.endTime}</td>`;
+
+        for (const slotMin of slots) {
+          const filled = slotMin >= startMin && slotMin < endMin;
+          bodyHtml += `<td class="gantt-bar${filled ? ' gantt-filled' : ''}"></td>`;
+        }
+        bodyHtml += `</tr>`;
+      }
+
+      if (filtered.length === 0) {
+        bodyHtml = `<tr><td colspan="${6 + slots.length}" style="text-align:center;padding:16px;color:#999">אין נסיעות ליום זה</td></tr>`;
+      }
+
+      document.getElementById('ganttBody').innerHTML = bodyHtml;
+    }
+
+    function renderAll() {
+      renderTrips();
+      renderTravel();
+      renderHours();
+      renderGantt();
+    }
+
+    // ============================================================
+    // ACTIONS
+    // ============================================================
+
+    // --- Inline cell edit for trips ---
+    function cellEdit(origIdx, field, value) {
+      if (field === 'startTime' || field === 'endTime') {
+        value = parseTime(value);
+        if (value === null) { alert('שעה לא תקינה'); renderTrips(); return; }
+      }
+      if (field === 'from' || field === 'to') {
+        value = normLoc(value.trim());
+        const trip = trips[origIdx];
+        const newFrom = field === 'from' ? value : trip.from;
+        const newTo = field === 'to' ? value : trip.to;
+        if (newFrom && newTo && !routeExists(newFrom, newTo)) {
+          alert('המסלול ' + newFrom + ' → ' + newTo + ' לא מוגדר בטבלת זמני נסיעה');
+          renderTrips();
+          return;
+        }
+      }
+      trips[origIdx][field] = value;
+      saveData();
+      renderTrips();
+    }
+
+    function addTrip() {
+      const date = fromDisplayDate(document.getElementById('newDate').value);
+      const from = normLoc(document.getElementById('newFrom').value.trim());
+      const startTime = parseTime(document.getElementById('newStart').value);
+      const to = normLoc(document.getElementById('newTo').value.trim());
+      const endTime = parseTime(document.getElementById('newEnd').value);
+
+      if (startTime === null || endTime === null) {
+        alert('שעה לא תקינה');
+        return;
+      }
+      if (!date || !from || !startTime || !to || !endTime) {
+        alert('נא למלא את כל השדות');
+        return;
+      }
+
+      if (!routeExists(from, to)) {
+        alert('המסלול ' + from + ' → ' + to + ' לא מוגדר בטבלת זמני נסיעה');
+        return;
+      }
+
+      trips.push({ date, from, startTime, to, endTime });
+      saveData();
+      renderTrips();
+    }
+
+    function deleteTrip(idx) {
+      trips.splice(idx, 1);
+      saveData();
+      renderTrips();
+    }
+
+    // --- Inline cell edit for travel table ---
+    function travelCellEdit(idx, field, value) {
+      if (field === 'from' || field === 'to') value = normLoc(value.trim());
+      travelTable[idx][field] = value;
+      saveData();
+      if (field === 'check') renderTravel();
+      // Don't re-render travel normally (would lose focus), but recalc trips
+      renderTrips();
+    }
+
+    function addTravelEntry() {
+      const from = normLoc(document.getElementById('newTravelFrom').value.trim());
+      const to = normLoc(document.getElementById('newTravelTo').value.trim());
+      const morningMin = parseInt(document.getElementById('newMorning').value) || 0;
+      const afternoonMin = parseInt(document.getElementById('newAfternoon').value) || 0;
+
+      const toggleEl = document.getElementById('newTravelTypeToggle');
+      const check = toggleEl ? toggleEl.dataset.val === 'true' : false;
+
+      const price = parseInt(document.getElementById('newPrice').value) || 0;
+
+      if (!from || !to) {
+        alert('נא למלא ישוב מוצא ויעד');
+        return;
+      }
+
+      travelTable.push({ from, to, morningMin, afternoonMin, check, price });
+      saveData();
+      renderTravel();
+      renderTrips();
+    }
+
+    function deleteTravelEntry(idx) {
+      travelTable.splice(idx, 1);
+      saveData();
+      renderTravel();
+      renderTrips();
+    }
+
+    function updateHours(idx, field, value) {
+      const parsed = parseTime(value);
+      if (parsed === null) { alert('שעה לא תקינה'); renderHours(); return; }
+      workingHours[idx][field] = parsed;
+      saveData();
+      renderHours();
+      renderTrips();
+    }
+
+    // --- Cell autocomplete (dropdown + filter) for inline location fields ---
+    let cellACList = null;
+    let cellACSelected = -1;
+
+    function closeCellAC() {
+      if (cellACList) { cellACList.remove(); cellACList = null; }
+      cellACSelected = -1;
+    }
+
+    function showCellAC(input, origIdx, field) {
+      closeCellAC();
+
+      function pick(val) {
+        input.value = val;
+        closeCellAC();
+        if (origIdx !== null) cellEdit(origIdx, field, val);
+      }
+
+      function render() {
+        closeCellAC();
+        const val = input.value.trim();
+        const all = getUniqueLocations();
+        const filtered = val ? all.filter(l => l.includes(val)) : all;
+        if (filtered.length === 0) return;
+
+        cellACList = document.createElement('div');
+        cellACList.className = 'autocomplete-list show';
+        cellACList.style.position = 'fixed';
+        cellACList.style.zIndex = '200';
+        const rect = input.getBoundingClientRect();
+        cellACList.style.top = rect.bottom + 'px';
+        cellACList.style.right = (document.documentElement.clientWidth - rect.right) + 'px';
+        cellACList.style.minWidth = Math.max(rect.width, 120) + 'px';
+        cellACSelected = -1;
+
+        filtered.forEach((l, i) => {
+          const item = document.createElement('div');
+          item.className = 'autocomplete-item';
+          item.textContent = l;
+          item.dataset.idx = i;
+          item.onmousedown = function (e) { e.preventDefault(); pick(l); };
+          cellACList.appendChild(item);
+        });
+        document.body.appendChild(cellACList);
+      }
+
+      function highlightItem(idx) {
+        if (!cellACList) return;
+        const items = cellACList.querySelectorAll('.autocomplete-item');
+        items.forEach(el => el.classList.remove('selected'));
+        if (idx >= 0 && idx < items.length) {
+          items[idx].classList.add('selected');
+          items[idx].scrollIntoView({ block: 'nearest' });
+        }
+      }
+
+      input.addEventListener('input', render);
+      input.addEventListener('keydown', function (e) {
+        if (!cellACList) return;
+        const items = cellACList.querySelectorAll('.autocomplete-item');
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          cellACSelected = Math.min(cellACSelected + 1, items.length - 1);
+          highlightItem(cellACSelected);
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          cellACSelected = Math.max(cellACSelected - 1, 0);
+          highlightItem(cellACSelected);
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (cellACSelected >= 0 && cellACSelected < items.length) {
+            pick(items[cellACSelected].textContent);
+          }
+        } else if (e.key === 'Escape') {
+          closeCellAC();
+        }
+      });
+      input.addEventListener('blur', function () {
+        setTimeout(closeCellAC, 150);
+      }, { once: true });
+      render();
+    }
+
+    // ============================================================
+    // IMPORT / EXPORT
+    // ============================================================
+
+    function exportJSON() {
+      const data = { trips, travelTable, workingHours, exportDate: new Date().toISOString() };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `zamudbaltam_${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportCSV() {
+      const results = computedTrips;
+      if (!results.length) { alert('אין נתונים לייצוא'); return; }
+
+      const headers = ['#', 'תאריך', 'יום', 'ממקום', 'התחלה', 'למקום', 'סיום', 'משך', 'קוד', 'סיווג', 'מחיר'];
+      const rows = results.map((r, i) => [
+        i + 1, toDisplayDate(r.date), r.hebDay, r.from, r.startTime, r.to, r.endTime,
+        r.durationStr, r.code, r.category, r.code === 'Z' ? '' : r.price
+      ]);
+
+      const BOM = '\uFEFF';
+      const csv = BOM + [headers, ...rows].map(r => r.join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `zamudbaltam_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importJSON(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (data.trips) trips = data.trips;
+          if (data.travelTable) travelTable = data.travelTable;
+          if (data.workingHours) workingHours = data.workingHours;
+          saveData();
+          renderAll();
+          alert('הנתונים יובאו בהצלחה');
+        } catch (err) {
+          alert('שגיאה בקריאת הקובץ: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    function resetData() {
+      if (confirm('האם אתה בטוח? פעולה זו תמחק את כל הנתונים ותחזיר לברירת מחדל.')) {
+        localStorage.removeItem(STORAGE_KEY);
+        loadData();
+        renderAll();
+      }
+    }
+
+    // ============================================================
+    // AUTOCOMPLETE
+    // ============================================================
+
+    function getUniqueLocations() {
+      const locs = new Set();
+      for (const t of trips) { locs.add(t.from); locs.add(t.to); }
+      for (const t of travelTable) { locs.add(t.from); locs.add(t.to); }
+      return [...locs].sort();
+    }
+
+    function setupAutocomplete(inputId, listId) {
+      const input = document.getElementById(inputId);
+      const list = document.getElementById(listId);
+      let selIdx = -1;
+
+      function render() {
+        const val = input.value.trim();
+        const all = getUniqueLocations();
+        const filtered = val ? all.filter(l => l.includes(val)) : all;
+        if (filtered.length === 0) { list.classList.remove('show'); return; }
+        selIdx = -1;
+        list.innerHTML = '';
+        filtered.forEach(l => {
+          const item = document.createElement('div');
+          item.className = 'autocomplete-item';
+          item.textContent = l;
+          item.onmousedown = function (e) { e.preventDefault(); input.value = l; list.classList.remove('show'); };
+          list.appendChild(item);
+        });
+        const rect = input.getBoundingClientRect();
+        list.style.top = rect.bottom + 'px';
+        list.style.right = (document.documentElement.clientWidth - rect.right) + 'px';
+        list.style.minWidth = rect.width + 'px';
+        list.classList.add('show');
+      }
+
+      function highlight(idx) {
+        const items = list.querySelectorAll('.autocomplete-item');
+        items.forEach(el => el.classList.remove('selected'));
+        if (idx >= 0 && idx < items.length) {
+          items[idx].classList.add('selected');
+          items[idx].scrollIntoView({ block: 'nearest' });
+        }
+      }
+
+      input.addEventListener('input', render);
+      input.addEventListener('focus', render);
+      input.addEventListener('blur', () => setTimeout(() => list.classList.remove('show'), 150));
+      input.addEventListener('keydown', function (e) {
+        const items = list.querySelectorAll('.autocomplete-item');
+        if (!items.length) return;
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          selIdx = Math.min(selIdx + 1, items.length - 1);
+          highlight(selIdx);
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          selIdx = Math.max(selIdx - 1, 0);
+          highlight(selIdx);
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (selIdx >= 0 && selIdx < items.length) {
+            input.value = items[selIdx].textContent;
+            list.classList.remove('show');
+          }
+        } else if (e.key === 'Escape') {
+          list.classList.remove('show');
+        }
+      });
+    }
+
+    // ============================================================
+    // TABS
+    // ============================================================
+
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', function () {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        this.classList.add('active');
+        document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+      });
+    });
+
+    // ============================================================
+    // INIT
+    // ============================================================
+
+    loadData();
+  </script>
+</body>
+
+</html>
