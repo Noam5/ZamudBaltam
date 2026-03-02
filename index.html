@@ -424,6 +424,34 @@
       margin-right: 2px;
     }
 
+    tr.row-check td {
+      background: #fff0f0 !important;
+    }
+
+    .check-price {
+      color: #c00;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .check-price .tri {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      background: #c00;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 2px;
+      clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+      line-height: 1;
+      padding-top: 5px;
+    }
+
     /* --- Add row at bottom (like an empty Excel row) --- */
     tr.add-row td {
       background: #e8f5e9;
@@ -1301,7 +1329,7 @@
         const r = results[i];
         const dc = dayColors[r.date];
         const oi = r.origIdx;
-        html += `<tr class="day-${dc}">` +
+        html += `<tr class="day-${dc}${r.isCheck ? ' row-check' : ''}">` +
           `<td class="del-cell"><span class="del-x" onclick="deleteTrip(${oi})" title="מחק">×</span>${r.isCheck ? '<span class="check-warn" title="לבדיקה">&#9888;</span>' : ''}</td>` +
           `<td class="computed">${i + 1}</td>` +
           `<td class="editable"><div class="date-cell"><input type="text" id="dt${oi}" value="${toDisplayDate(r.date)}" onchange="cellEdit(${oi},'date',fromDisplayDate(this.value))" placeholder="DD-MM-YYYY"><input type="date" id="dp${oi}"><span class="date-pick" onclick="openDatePicker('dt${oi}','dp${oi}')">&#128197;</span></div></td>` +
@@ -1313,7 +1341,7 @@
           `<td class="computed">${r.durationStr}</td>` +
           `<td class="computed code-${r.code}">${r.code}</td>` +
           `<td class="computed">${r.category}</td>` +
-          `<td class="computed">${r.isCheck ? 'בדיקה' : (r.code === 'Z' ? '' : r.price + ' ₪')}</td>` +
+          `<td class="computed">${r.isCheck ? '<span class="check-price"><span class="tri">!</span> בדיקה</span>' : (r.code === 'Z' ? '' : r.price + ' ₪')}</td>` +
           `</tr>`;
       }
 
