@@ -428,6 +428,28 @@
       background: #fff0f0 !important;
     }
 
+    tr.row-missing td {
+      background: #fff3e0 !important;
+    }
+
+    tr.row-invalid td {
+      background: #ffcdd2 !important;
+    }
+
+    .invalid-time-warn {
+      color: #c62828;
+      font-weight: 600;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .missing-route-warn {
+      color: #e65100;
+      font-weight: 600;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
     .check-price {
       color: #c00;
       font-weight: 600;
@@ -1209,11 +1231,13 @@
         const rawEndMin = timeToMin(trip.endTime); // 00:00 = 0 (matches Excel TIMEVALUE)
         const endMinForDuration = rawEndMin === 0 && startMin > 0 ? 1440 : rawEndMin;
         const durationMin = endMinForDuration - startMin;
+        const invalidTimes = durationMin < 0;
         const dayOfWeek = getDayOfWeek(trip.date);
         const hebDay = HEB_DAYS[dayOfWeek];
         const wh = getWorkingHoursForDay(dayOfWeek);
 
         let code = 'Z'; // default
+        let missingRoute = null;
 
         // Step 1: Check BML (outside working hours)
         // Uses raw time values to match Excel TIMEVALUE behavior
@@ -1253,8 +1277,10 @@
               } else {
                 code = 'Z';
               }
+            } else {
+              // Missing connecting route — flag it
+              missingRoute = { from: prevZTrip.to, to: trip.from };
             }
-            // If no travel time found, default stays Z
           }
           // If no previous Z trip, default stays Z
         }
@@ -1286,7 +1312,9 @@
           category: categoryLabels[code],
           price,
           durationStr: minToHM(durationMin),
-          isCheck: routeIsCheck(trip.from, trip.to)
+          isCheck: routeIsCheck(trip.from, trip.to),
+          missingRoute,
+          invalidTimes
         });
       }
 
@@ -1329,7 +1357,8 @@
         const r = results[i];
         const dc = dayColors[r.date];
         const oi = r.origIdx;
-        html += `<tr class="day-${dc}${r.isCheck ? ' row-check' : ''}">` +
+        const rowClass = r.invalidTimes ? ' row-invalid' : (r.missingRoute ? ' row-missing' : '');
+        html += `<tr class="day-${dc}${r.isCheck ? ' row-check' : ''}${rowClass}">` +
           `<td class="del-cell"><span class="del-x" onclick="deleteTrip(${oi})" title="מחק">×</span>${r.isCheck ? '<span class="check-warn" title="לבדיקה">&#9888;</span>' : ''}</td>` +
           `<td class="computed">${i + 1}</td>` +
           `<td class="editable"><div class="date-cell"><input type="text" id="dt${oi}" value="${toDisplayDate(r.date)}" onchange="cellEdit(${oi},'date',fromDisplayDate(this.value))" placeholder="DD-MM-YYYY"><input type="date" id="dp${oi}"><span class="date-pick" onclick="openDatePicker('dt${oi}','dp${oi}')">&#128197;</span></div></td>` +
@@ -1340,8 +1369,8 @@
           `<td class="editable"><div class="time-cell"><input type="text" id="et${oi}" value="${r.endTime}" onchange="cellEdit(${oi},'endTime',this.value)" oninput="timeInputHandler(event)" placeholder="HH:MM"><span class="time-pick" onclick="openTimePicker('et${oi}')">&#128339;</span></div></td>` +
           `<td class="computed">${r.durationStr}</td>` +
           `<td class="computed code-${r.code}">${r.code}</td>` +
-          `<td class="computed">${r.category}</td>` +
-          `<td class="computed">${r.isCheck ? '<span class="check-price"><span class="tri">!</span> בדיקה</span>' : (r.code === 'Z' ? '' : r.price + ' ₪')}</td>` +
+          `<td class="computed">${r.missingRoute ? '<span class="missing-route-warn" title="חסרה נסיעה מחברת">&#9888; חסרה: ' + esc(r.missingRoute.from) + ' → ' + esc(r.missingRoute.to) + '</span>' : r.category}</td>` +
+          `<td class="computed">${r.invalidTimes ? '<span class="invalid-time-warn">&#9888; שעת סיום לפני שעת התחלה</span>' : (r.isCheck ? '<span class="check-price"><span class="tri">!</span> בדיקה</span>' : (r.code === 'Z' ? '' : r.price + ' ₪'))}</td>` +
           `</tr>`;
       }
 
