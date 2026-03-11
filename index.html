@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <title>שיבוצי רכב ממוגן</title>
   <style>
     * {
@@ -660,6 +661,229 @@
         display: block !important;
       }
     }
+
+    /* --- Travel tab side-by-side layout --- */
+    .travel-layout {
+      display: flex;
+      gap: 0;
+      align-items: stretch;
+    }
+
+    .alias-panel {
+      width: 280px;
+      min-width: 280px;
+      background: #f9f9f9;
+      border-right: 2px solid #ccc;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .alias-panel-title {
+      font-weight: 600;
+      font-size: 14px;
+      color: #333;
+      margin-bottom: 4px;
+    }
+
+    .alias-panel-scroll {
+      flex: 1;
+      overflow-y: auto;
+      max-height: calc(100vh - 180px);
+    }
+
+    .travel-main {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .alias-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .alias-table th {
+      background: #e7e6e6;
+      padding: 4px 8px;
+      text-align: right;
+      border: 1px solid #ccc;
+      font-weight: 600;
+    }
+
+    .alias-table td {
+      padding: 3px 6px;
+      border: 1px solid #ddd;
+    }
+
+    .alias-table input[type="text"] {
+      width: 100%;
+      border: 1px solid #ccc;
+      padding: 2px 4px;
+      font-family: inherit;
+      font-size: 13px;
+    }
+
+    .alias-add-row td {
+      background: #f5f5f5;
+    }
+
+    /* --- Import modal --- */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 5000;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    .modal-box {
+      background: #fff;
+      border-radius: 6px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      max-width: 850px;
+      width: 95%;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      direction: rtl;
+    }
+
+    .modal-header {
+      padding: 12px 16px;
+      background: #217346;
+      color: white;
+      font-weight: 700;
+      font-size: 16px;
+      border-radius: 6px 6px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header .modal-close {
+      cursor: pointer;
+      font-size: 20px;
+      background: none;
+      border: none;
+      color: white;
+      padding: 0 4px;
+    }
+
+    .modal-body {
+      padding: 12px 16px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .modal-footer {
+      padding: 10px 16px;
+      border-top: 1px solid #ddd;
+      display: flex;
+      gap: 8px;
+      justify-content: flex-start;
+    }
+
+    .modal-footer .btn {
+      color: #333;
+      border-color: #999;
+    }
+
+    .modal-footer .btn-confirm {
+      background: #217346;
+      color: white;
+      border-color: #185a34;
+      font-weight: 600;
+    }
+
+    .modal-footer .btn-confirm:hover {
+      background: #185a34;
+    }
+
+    .import-warning {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 4px;
+      padding: 8px 12px;
+      margin-bottom: 10px;
+      font-size: 14px;
+      color: #856404;
+    }
+
+    .import-error {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      border-radius: 4px;
+      padding: 8px 12px;
+      margin-bottom: 10px;
+      font-size: 14px;
+      color: #721c24;
+    }
+
+    .import-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .import-table th {
+      background: #e7e6e6;
+      padding: 4px 6px;
+      border: 1px solid #ccc;
+      font-weight: 600;
+      text-align: right;
+    }
+
+    .import-table td {
+      padding: 3px 6px;
+      border: 1px solid #ddd;
+    }
+
+    .import-table tr.unknown-loc {
+      background: #fff3cd;
+    }
+
+    .unknown-badge {
+      display: inline-block;
+      background: #dc3545;
+      color: white;
+      font-size: 11px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      margin-right: 4px;
+    }
+
+    .import-alias-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 3px 0;
+      font-size: 13px;
+    }
+
+    .import-alias-row input {
+      width: 140px;
+      border: 1px solid #ccc;
+      padding: 2px 4px;
+      font-family: inherit;
+      font-size: 13px;
+    }
+
+    .import-alias-row select {
+      border: 1px solid #ccc;
+      padding: 2px 4px;
+      font-family: inherit;
+      font-size: 13px;
+    }
   </style>
 </head>
 
@@ -668,6 +892,8 @@
   <div class="toolbar">
     <h1>שיבוצי רכב ממוגן</h1>
     <div class="toolbar-actions">
+      <button class="btn" onclick="document.getElementById('importXLS').click()" style="background:rgba(255,255,255,0.15);font-weight:600">יבוא XLS</button>
+      <input type="file" id="importXLS" accept=".xls,.xlsx" style="display:none" onchange="handleXLSImport(event)">
       <button class="btn" onclick="exportJSON()">יצוא JSON</button>
       <button class="btn" onclick="exportCSV()">יצוא CSV</button>
       <button class="btn" onclick="document.getElementById('importFile').click()">יבוא JSON</button>
@@ -747,26 +973,48 @@
   <!-- TRAVEL TIMES TAB -->
   <div id="tab-travel" class="tab-content">
     <div class="tab-inner">
-      <div class="filter-bar">
-        <span>חיפוש:</span>
-        <input type="text" id="travelFilter" placeholder="שם ישוב..." oninput="renderTravel()">
-      </div>
-      <div class="table-wrap" style="max-height:calc(100vh - 120px)">
-        <table>
-          <thead>
-            <tr>
-              <th></th>
-              <th>#</th>
-              <th style="min-width:120px">מישוב</th>
-              <th style="min-width:120px">לישוב</th>
-              <th>זמן בין 06:00-12:00</th>
-              <th>זמן בין 12:00-24:00</th>
-              <th>נסיעה או לבדיקה</th>
-              <th>מחיר ₪</th>
-            </tr>
-          </thead>
-          <tbody id="travelBody"></tbody>
-        </table>
+      <div class="travel-layout">
+        <!-- Travel table (right side in RTL) -->
+        <div class="travel-main">
+          <div class="filter-bar">
+            <span>חיפוש:</span>
+            <input type="text" id="travelFilter" placeholder="שם ישוב..." oninput="renderTravel()">
+          </div>
+          <div class="table-wrap" style="max-height:calc(100vh - 120px)">
+            <table>
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>#</th>
+                  <th style="min-width:120px">מישוב</th>
+                  <th style="min-width:120px">לישוב</th>
+                  <th>זמן בין 06:00-12:00</th>
+                  <th>זמן בין 12:00-24:00</th>
+                  <th>נסיעה או לבדיקה</th>
+                  <th>מחיר ₪</th>
+                </tr>
+              </thead>
+              <tbody id="travelBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <!-- Alias panel (left side in RTL) -->
+        <div class="alias-panel">
+          <div class="alias-panel-title">כינויי ישובים</div>
+          <p style="font-size:12px;color:#666;margin:0 0 6px">כינוי ממופה לשם הישוב המלא. בעת יבוא או הוספת נסיעה, הכינוי יומר אוטומטית.</p>
+          <div class="alias-panel-scroll">
+            <table class="alias-table">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>כינוי</th>
+                  <th>ישוב מלא</th>
+                </tr>
+              </thead>
+              <tbody id="aliasBody_table"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -809,6 +1057,21 @@
           <thead id="ganttHead"></thead>
           <tbody id="ganttBody"></tbody>
         </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- XLS Import Preview Modal -->
+  <div class="modal-overlay" id="importModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span>יבוא נסיעות מקובץ XLS</span>
+        <button class="modal-close" onclick="closeImportModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="importModalBody"></div>
+      <div class="modal-footer">
+        <button class="btn btn-confirm" id="importConfirmBtn" onclick="confirmXLSImport()">יבוא נסיעות</button>
+        <button class="btn" onclick="closeImportModal()">ביטול</button>
       </div>
     </div>
   </div>
@@ -938,7 +1201,7 @@
     const STORAGE_KEY = 'zamudbaltam';
 
     // --- Location normalization (merge duplicate spellings) ---
-    const LOCATION_ALIASES = {
+    const DEFAULT_LOCATION_ALIASES = {
       'אלפ"ש': 'אלפי מנשה',
       'עימנואל': 'עמנואל',
       'הדר שומרון': 'הדר השומרון',
@@ -950,8 +1213,10 @@
       'גינות': 'גינות שומרון'
     };
 
+    let locationAliases = { ...DEFAULT_LOCATION_ALIASES };
+
     function normLoc(name) {
-      return LOCATION_ALIASES[name] || name;
+      return locationAliases[name] || name;
     }
 
     function normalizeAndDedup() {
@@ -1000,6 +1265,8 @@
           trips = data.trips || JSON.parse(JSON.stringify(DEFAULT_TRIPS));
           travelTable = data.travelTable || JSON.parse(JSON.stringify(DEFAULT_TRAVEL_TABLE));
           workingHours = data.workingHours || JSON.parse(JSON.stringify(DEFAULT_WORKING_HOURS));
+          if (data.locationAliases) locationAliases = data.locationAliases;
+          else locationAliases = { ...DEFAULT_LOCATION_ALIASES };
         }
       } catch (e) {
         console.error("Failed to load from Google Sheets:", e);
@@ -1007,6 +1274,7 @@
         trips = JSON.parse(JSON.stringify(DEFAULT_TRIPS));
         travelTable = JSON.parse(JSON.stringify(DEFAULT_TRAVEL_TABLE));
         workingHours = JSON.parse(JSON.stringify(DEFAULT_WORKING_HOURS));
+        locationAliases = { ...DEFAULT_LOCATION_ALIASES };
       }
       normalizeAndDedup();
       hideLoading();
@@ -1019,7 +1287,7 @@
       if (saveTimeout) clearTimeout(saveTimeout);
 
       saveTimeout = setTimeout(async () => {
-        const payload = JSON.stringify({ trips, travelTable, workingHours });
+        const payload = JSON.stringify({ trips, travelTable, workingHours, locationAliases });
         try {
           const resp = await fetch(GS_URL, {
             method: "POST",
@@ -1549,6 +1817,7 @@
     function renderAll() {
       renderTrips();
       renderTravel();
+      renderAliases();
       renderHours();
       renderGantt();
     }
@@ -1743,11 +2012,281 @@
     }
 
     // ============================================================
+    // ALIAS MANAGEMENT
+    // ============================================================
+
+    function renderAliases() {
+      const tbody = document.getElementById('aliasBody_table');
+      if (!tbody) return;
+
+      const entries = Object.entries(locationAliases).sort((a, b) => a[0].localeCompare(b[0], 'he'));
+      const locs = getUniqueLocations();
+
+      let html = `<tr class="alias-add-row">
+        <td style="width:30px"></td>
+        <td><input type="text" id="newAliasFrom" placeholder="כינוי חדש..."></td>
+        <td style="display:flex;gap:4px;align-items:center">
+          <input type="text" id="newAliasTo" placeholder="שם ישוב מלא..." list="aliasToList">
+          <datalist id="aliasToList">${locs.map(l => `<option value="${esc(l)}">`).join('')}</datalist>
+          <button class="btn btn-add" onclick="addAlias()" style="font-size:11px;white-space:nowrap">+ הוסף</button>
+        </td>
+      </tr>`;
+
+      for (const [alias, target] of entries) {
+        html += `<tr>
+          <td class="del-cell"><span class="del-x" onclick="deleteAlias('${esc(alias)}')" title="מחק">×</span></td>
+          <td>${esc(alias)}</td>
+          <td>${esc(target)}</td>
+        </tr>`;
+      }
+
+      tbody.innerHTML = html;
+    }
+
+    function addAlias() {
+      const fromEl = document.getElementById('newAliasFrom');
+      const toEl = document.getElementById('newAliasTo');
+      const alias = fromEl.value.trim();
+      const target = toEl.value.trim();
+      if (!alias || !target) { alert('נא למלא כינוי וישוב מלא'); return; }
+      if (alias === target) { alert('הכינוי וה ישוב המלא לא יכולים להיות זהים'); return; }
+
+      locationAliases[alias] = target;
+      normalizeAndDedup();
+      saveData();
+      renderAliases();
+      renderTravel();
+      renderTrips();
+    }
+
+    function deleteAlias(alias) {
+      delete locationAliases[alias];
+      saveData();
+      renderAliases();
+    }
+
+    // ============================================================
+    // XLS IMPORT
+    // ============================================================
+
+    let pendingXLSTrips = []; // trips parsed from XLS, waiting for user confirmation
+
+    function parseExcelTimeFraction(frac) {
+      if (typeof frac !== 'number') return '';
+      const totalMin = Math.round(frac * 24 * 60);
+      const h = Math.floor(totalMin / 60);
+      const m = totalMin % 60;
+      return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+    }
+
+    function parseExcelSerialDate(serial) {
+      if (typeof serial !== 'number') return '';
+      const d = new Date((serial - 25569) * 86400 * 1000);
+      const y = d.getUTCFullYear();
+      const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(d.getUTCDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+
+    function parseExcelDescription(desc) {
+      if (!desc) return null;
+      desc = String(desc);
+      const m = desc.match(/(?:איסוף|פיזור):\s*(.+?)\s*-\s+(.+)/);
+      if (!m) return null;
+
+      let from = m[1].trim();
+      let to = m[2].trim();
+
+      // Strip all trailing parenthetical groups (person names, phone numbers)
+      to = to.replace(/\s*(\([^)]*\)\s*)+$/, '').trim();
+      // Strip trailing dashes and spaces left over
+      to = to.replace(/[\s\-]+$/, '').trim();
+
+      // Also strip trailing parens from FROM (rare but possible)
+      // But keep things like אלפ"ש(ת.דלק) as-is — only strip if it looks like person info
+      from = from.replace(/\s*\((?:[^)]*\d{3}[^)]*|[^)]*דר'[^)]*|[^)]*ד"ר[^)]*)\)\s*$/, '').trim();
+
+      return { from, to };
+    }
+
+    function handleXLSImport(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      event.target.value = ''; // reset so same file can be re-selected
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true });
+
+          const parsed = [];
+          for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row || !row[1]) continue;
+            const desc = String(row[1]);
+            const route = parseExcelDescription(desc);
+            if (!route) continue;
+
+            const startTime = parseExcelTimeFraction(row[10]);
+            const endTime = parseExcelTimeFraction(row[9]);
+            const date = parseExcelSerialDate(row[11]);
+
+            if (!date || !startTime || !endTime) continue;
+
+            // Apply alias normalization
+            const from = normLoc(route.from);
+            const to = normLoc(route.to);
+
+            parsed.push({
+              date, from, to, startTime, endTime,
+              rawFrom: route.from,
+              rawTo: route.to
+            });
+          }
+
+          if (parsed.length === 0) {
+            alert('לא נמצאו נסיעות בקובץ');
+            return;
+          }
+
+          showImportPreview(parsed);
+        } catch (err) {
+          alert('שגיאה בקריאת קובץ XLS: ' + err.message);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function showImportPreview(parsed) {
+      pendingXLSTrips = parsed;
+
+      // Find unknown locations (not in travel table and not same from/to)
+      const knownLocs = new Set();
+      for (const t of travelTable) { knownLocs.add(t.from); knownLocs.add(t.to); }
+      for (const t of trips) { knownLocs.add(t.from); knownLocs.add(t.to); }
+
+      const unknownLocs = new Set();
+      for (const t of parsed) {
+        if (!knownLocs.has(t.from)) unknownLocs.add(t.from);
+        if (!knownLocs.has(t.to)) unknownLocs.add(t.to);
+      }
+
+      // Also track which raw names were aliased
+      const aliasedNames = new Map();
+      for (const t of parsed) {
+        if (t.rawFrom !== t.from) aliasedNames.set(t.rawFrom, t.from);
+        if (t.rawTo !== t.to) aliasedNames.set(t.rawTo, t.to);
+      }
+
+      const body = document.getElementById('importModalBody');
+      let html = '';
+
+      // Summary
+      html += `<p style="margin-bottom:8px"><b>${parsed.length}</b> נסיעות נמצאו בקובץ.</p>`;
+
+      // Aliased names info
+      if (aliasedNames.size > 0) {
+        html += `<div class="import-warning"><b>כינויים שזוהו אוטומטית:</b><br>`;
+        for (const [raw, resolved] of aliasedNames) {
+          html += `${esc(raw)} &larr; ${esc(resolved)}<br>`;
+        }
+        html += `</div>`;
+      }
+
+      // Unknown locations warning
+      if (unknownLocs.size > 0) {
+        html += `<div class="import-error"><b>ישובים לא מוכרים (${unknownLocs.size}):</b> הישובים הבאים לא קיימים בטבלת זמני הנסיעה. `;
+        html += `ניתן להוסיף כינוי או להוסיפם לטבלת זמני הנסיעה לאחר היבוא.<br><br>`;
+        for (const loc of unknownLocs) {
+          html += `<div class="import-alias-row">`;
+          html += `<span class="unknown-badge">?</span> <b>${esc(loc)}</b>`;
+          html += ` &mdash; הוסף ככינוי ל: `;
+          html += `<input type="text" class="import-alias-input" data-unknown="${esc(loc)}" list="importAliasList" placeholder="שם ישוב מלא...">`;
+          html += `</div>`;
+        }
+        const existingLocs = [...knownLocs].sort((a, b) => a.localeCompare(b, 'he'));
+        html += `<datalist id="importAliasList">${existingLocs.map(l => `<option value="${esc(l)}">`).join('')}</datalist>`;
+        html += `</div>`;
+      }
+
+      // Trip preview table
+      html += `<div style="max-height:350px;overflow-y:auto">`;
+      html += `<table class="import-table"><thead><tr>`;
+      html += `<th>#</th><th>תאריך</th><th>ממקום</th><th>התחלה</th><th>למקום</th><th>סיום</th>`;
+      html += `</tr></thead><tbody>`;
+      for (let i = 0; i < parsed.length; i++) {
+        const t = parsed[i];
+        const fromUnknown = unknownLocs.has(t.from);
+        const toUnknown = unknownLocs.has(t.to);
+        const rowClass = (fromUnknown || toUnknown) ? ' class="unknown-loc"' : '';
+        html += `<tr${rowClass}>`;
+        html += `<td>${i + 1}</td>`;
+        html += `<td>${toDisplayDate(t.date)}</td>`;
+        html += `<td>${fromUnknown ? '<span class="unknown-badge">?</span>' : ''}${esc(t.from)}</td>`;
+        html += `<td>${t.startTime}</td>`;
+        html += `<td>${toUnknown ? '<span class="unknown-badge">?</span>' : ''}${esc(t.to)}</td>`;
+        html += `<td>${t.endTime}</td>`;
+        html += `</tr>`;
+      }
+      html += `</tbody></table></div>`;
+
+      body.innerHTML = html;
+      document.getElementById('importModal').classList.add('show');
+    }
+
+    function closeImportModal() {
+      document.getElementById('importModal').classList.remove('show');
+      pendingXLSTrips = [];
+    }
+
+    function confirmXLSImport() {
+      // First, process any aliases the user added in the modal
+      const aliasInputs = document.querySelectorAll('.import-alias-input');
+      let newAliasCount = 0;
+      for (const input of aliasInputs) {
+        const unknown = input.dataset.unknown;
+        const target = input.value.trim();
+        if (target && unknown && unknown !== target) {
+          locationAliases[unknown] = target;
+          newAliasCount++;
+        }
+      }
+
+      // Re-normalize all pending trips with updated aliases
+      for (const t of pendingXLSTrips) {
+        t.from = normLoc(t.rawFrom);
+        t.to = normLoc(t.rawTo);
+      }
+
+      // Add all trips
+      const newTrips = pendingXLSTrips.map(t => ({
+        date: t.date,
+        from: t.from,
+        to: t.to,
+        startTime: t.startTime,
+        endTime: t.endTime
+      }));
+      trips.push(...newTrips);
+
+      normalizeAndDedup();
+      saveData();
+      closeImportModal();
+      renderAll();
+
+      let msg = `יובאו ${newTrips.length} נסיעות בהצלחה.`;
+      if (newAliasCount > 0) msg += `\nנוספו ${newAliasCount} כינויים חדשים.`;
+      alert(msg);
+    }
+
+    // ============================================================
     // IMPORT / EXPORT
     // ============================================================
 
     function exportJSON() {
-      const data = { trips, travelTable, workingHours, exportDate: new Date().toISOString() };
+      const data = { trips, travelTable, workingHours, locationAliases, exportDate: new Date().toISOString() };
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -1788,6 +2327,7 @@
           if (data.trips) trips = data.trips;
           if (data.travelTable) travelTable = data.travelTable;
           if (data.workingHours) workingHours = data.workingHours;
+          if (data.locationAliases) locationAliases = data.locationAliases;
           saveData();
           renderAll();
           alert('הנתונים יובאו בהצלחה');
