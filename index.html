@@ -959,6 +959,7 @@
             <th>התחלה</th>
             <th>למקום</th>
             <th>סיום</th>
+            <th>רופא</th>
             <th>משך</th>
             <th>קוד</th>
             <th>סיווג</th>
@@ -1617,6 +1618,7 @@
         `<td><div class="time-cell"><input type="text" id="newStart" placeholder="HH:MM" oninput="timeInputHandler(event)"><span class="time-pick" onclick="openTimePicker('newStart')">&#128339;</span></div></td>` +
         `<td style="position:relative"><input type="text" id="newTo" placeholder="למקום" autocomplete="off"><div class="autocomplete-list" id="acTo"></div></td>` +
         `<td><div class="time-cell"><input type="text" id="newEnd" placeholder="HH:MM" oninput="timeInputHandler(event)"><span class="time-pick" onclick="openTimePicker('newEnd')">&#128339;</span></div></td>` +
+        `<td><input type="text" id="newDoctor" placeholder="רופא" autocomplete="off"></td>` +
         `<td colspan="4"><button class="btn btn-add" onclick="addTrip()" style="font-size:11px">+ הוסף</button></td>` +
         `</tr>`;
 
@@ -1635,6 +1637,7 @@
           `<td class="editable"><div class="time-cell"><input type="text" id="st${oi}" value="${r.startTime}" onchange="cellEdit(${oi},'startTime',this.value)" oninput="timeInputHandler(event)" placeholder="HH:MM"><span class="time-pick" onclick="openTimePicker('st${oi}')">&#128339;</span></div></td>` +
           `<td class="editable"><input type="text" value="${esc(r.to)}" onchange="cellEdit(${oi},'to',this.value)" onfocus="showCellAC(this,${oi},'to')" autocomplete="off"></td>` +
           `<td class="editable"><div class="time-cell"><input type="text" id="et${oi}" value="${r.endTime}" onchange="cellEdit(${oi},'endTime',this.value)" oninput="timeInputHandler(event)" placeholder="HH:MM"><span class="time-pick" onclick="openTimePicker('et${oi}')">&#128339;</span></div></td>` +
+          `<td class="editable"><input type="text" value="${esc(r.doctor || '')}" onchange="cellEdit(${oi},'doctor',this.value)" placeholder="-"></td>` +
           `<td class="computed">${r.durationStr}</td>` +
           `<td class="computed code-${r.code}">${r.code}</td>` +
           `<td class="computed">${r.missingRoute ? '<span class="missing-route-warn" title="חסרה נסיעה מחברת">&#9888; חסרה: ' + esc(r.missingRoute.from) + ' → ' + esc(r.missingRoute.to) + '</span>' : r.category}</td>` +
@@ -1854,6 +1857,7 @@
       const startTime = parseTime(document.getElementById('newStart').value);
       const to = normLoc(document.getElementById('newTo').value.trim());
       const endTime = parseTime(document.getElementById('newEnd').value);
+      const doctor = (document.getElementById('newDoctor').value || '').trim();
 
       if (startTime === null || endTime === null) {
         alert('שעה לא תקינה');
@@ -1869,7 +1873,7 @@
         return;
       }
 
-      trips.push({ date, from, startTime, to, endTime });
+      trips.push({ date, from, startTime, to, endTime, doctor });
       saveData();
       renderTrips();
     }
@@ -2097,6 +2101,16 @@
       let from = m[1].trim();
       let to = m[2].trim();
 
+      // Extract doctor name from the last trailing parenthetical group
+      let doctor = '';
+      const docMatch = to.match(/\(([^()]*)\)\s*$/);
+      if (docMatch) {
+        doctor = docMatch[1]
+          .replace(/0\d{1,2}[-\s]?\d{6,7}/g, '') // strip phone numbers
+          .replace(/[\s\-]+/g, ' ')
+          .trim();
+      }
+
       // Strip all trailing parenthetical groups (person names, phone numbers)
       to = to.replace(/\s*(\([^)]*\)\s*)+$/, '').trim();
       // Strip trailing dashes and spaces left over
@@ -2106,7 +2120,7 @@
       // But keep things like אלפ"ש(ת.דלק) as-is — only strip if it looks like person info
       from = from.replace(/\s*\((?:[^)]*\d{3}[^)]*|[^)]*דר'[^)]*|[^)]*ד"ר[^)]*)\)\s*$/, '').trim();
 
-      return { from, to };
+      return { from, to, doctor };
     }
 
     function handleXLSImport(event) {
@@ -2142,6 +2156,7 @@
 
             parsed.push({
               date, from, to, startTime, endTime,
+              doctor: route.doctor || '',
               rawFrom: route.from,
               rawTo: route.to
             });
@@ -2215,7 +2230,7 @@
       // Trip preview table
       html += `<div style="max-height:350px;overflow-y:auto">`;
       html += `<table class="import-table"><thead><tr>`;
-      html += `<th>#</th><th>תאריך</th><th>ממקום</th><th>התחלה</th><th>למקום</th><th>סיום</th>`;
+      html += `<th>#</th><th>תאריך</th><th>ממקום</th><th>התחלה</th><th>למקום</th><th>סיום</th><th>רופא</th>`;
       html += `</tr></thead><tbody>`;
       for (let i = 0; i < parsed.length; i++) {
         const t = parsed[i];
@@ -2229,6 +2244,7 @@
         html += `<td>${t.startTime}</td>`;
         html += `<td>${toUnknown ? '<span class="unknown-badge">?</span>' : ''}${esc(t.to)}</td>`;
         html += `<td>${t.endTime}</td>`;
+        html += `<td>${esc(t.doctor || '')}</td>`;
         html += `</tr>`;
       }
       html += `</tbody></table></div>`;
@@ -2267,7 +2283,8 @@
         from: t.from,
         to: t.to,
         startTime: t.startTime,
-        endTime: t.endTime
+        endTime: t.endTime,
+        doctor: t.doctor || ''
       }));
       trips.push(...newTrips);
 
@@ -2300,10 +2317,10 @@
       const results = computedTrips;
       if (!results.length) { alert('אין נתונים לייצוא'); return; }
 
-      const headers = ['#', 'תאריך', 'יום', 'ממקום', 'התחלה', 'למקום', 'סיום', 'משך', 'קוד', 'סיווג', 'מחיר'];
+      const headers = ['#', 'תאריך', 'יום', 'ממקום', 'התחלה', 'למקום', 'סיום', 'רופא', 'משך', 'קוד', 'סיווג', 'מחיר'];
       const rows = results.map((r, i) => [
         i + 1, toDisplayDate(r.date), r.hebDay, r.from, r.startTime, r.to, r.endTime,
-        r.durationStr, r.code, r.category, r.code === 'Z' ? '' : r.price
+        r.doctor || '', r.durationStr, r.code, r.category, r.code === 'Z' ? '' : r.price
       ]);
 
       const BOM = '\uFEFF';
