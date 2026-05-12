@@ -894,10 +894,6 @@
     <div class="toolbar-actions">
       <button class="btn" onclick="document.getElementById('importXLS').click()" style="background:rgba(255,255,255,0.15);font-weight:600">יבוא XLS</button>
       <input type="file" id="importXLS" accept=".xls,.xlsx" style="display:none" onchange="handleXLSImport(event)">
-      <button class="btn" onclick="exportJSON()">יצוא JSON</button>
-      <button class="btn" onclick="exportCSV()">יצוא CSV</button>
-      <button class="btn" onclick="document.getElementById('importFile').click()">יבוא JSON</button>
-      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
       <button class="btn" onclick="resetData()">איפוס</button>
     </div>
   </div>
@@ -2357,9 +2353,9 @@
     }
 
     function resetData() {
-      if (confirm('האם אתה בטוח? פעולה זו תמחק את כל הנתונים ותחזיר לברירת מחדל.')) {
-        localStorage.removeItem(STORAGE_KEY);
-        loadData();
+      if (confirm('האם אתה בטוח? פעולה זו תמחק את כל הנסיעות מהטבלה.')) {
+        trips = [];
+        saveData();
         renderAll();
       }
     }
