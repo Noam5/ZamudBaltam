@@ -909,6 +909,7 @@
     <div class="toolbar-actions">
       <button class="btn" onclick="document.getElementById('importXLS').click()" style="background:rgba(255,255,255,0.15);font-weight:600">יבוא XLS</button>
       <input type="file" id="importXLS" accept=".xls,.xlsx" style="display:none" onchange="handleXLSImport(event)">
+      <button class="btn" onclick="exportXLSX()" style="background:rgba(255,255,255,0.15);font-weight:600">ייצוא Excel</button>
       <button class="btn" onclick="resetData()">איפוס</button>
     </div>
   </div>
@@ -2364,6 +2365,69 @@
       a.download = `zamudbaltam_${new Date().toISOString().slice(0, 10)}.csv`;
       a.click();
       URL.revokeObjectURL(url);
+    }
+
+    // Build the array-of-arrays for the trips Excel export.
+    // Excludes \u05DE\u05E9\u05DA (duration) and \u05E7\u05D5\u05D3 (code). Pure aside from toDisplayDate,
+    // so the column/price/totals logic can be unit-tested.
+    function buildTripsExportAOA(results) {
+      const header = ['\u05DE\u05E1\u05E4\u05E8 \u05D5\u05D0\u05D5\u05E6\u05F3', '\u05EA\u05D0\u05E8\u05D9\u05DA', '\u05D9\u05D5\u05DD', '\u05DE\u05DE\u05E7\u05D5\u05DD', '\u05D4\u05EA\u05D7\u05DC\u05D4', '\u05DC\u05DE\u05E7\u05D5\u05DD', '\u05E1\u05D9\u05D5\u05DD', '\u05E8\u05D5\u05E4\u05D0', '\u05E1\u05D9\u05D5\u05D5\u05D2', '\u05DE\u05D7\u05D9\u05E8'];
+      const rows = [header];
+      let totalPrice = 0;
+
+      results.forEach((r, i) => {
+        // Category cell: a plain-text note when the connecting route is missing,
+        // otherwise the normal label (no HTML/icons in the spreadsheet).
+        const category = r.missingRoute
+          ? '\u05D7\u05E1\u05E8\u05D4: ' + r.missingRoute.from + ' \u2192 ' + r.missingRoute.to
+          : r.category;
+
+        // Price cell mirrors the on-screen logic so the total stays correct.
+        let price = '';
+        if (r.invalidTimes) price = '';
+        else if (r.isCheck) price = '\u05D1\u05D3\u05D9\u05E7\u05D4';
+        else if (r.code === 'Z') price = '';
+        else { price = r.price; totalPrice += r.price; }
+
+        rows.push([
+          i + 1,
+          toDisplayDate(r.date),
+          r.hebDay,
+          r.from,
+          r.startTime,
+          r.to,
+          r.endTime,
+          r.doctor || '',
+          category,
+          price
+        ]);
+      });
+
+      // Totals row: trip count in the first cell, summed price in the \u05DE\u05D7\u05D9\u05E8 column.
+      rows.push(['\u05E1\u05D4\u05F4\u05DB (' + results.length + ' \u05E0\u05E1\u05D9\u05E2\u05D5\u05EA)', '', '', '', '', '', '', '', '', totalPrice]);
+
+      return rows;
+    }
+
+    function exportXLSX() {
+      const results = classifyTrips();
+      if (!results.length) { alert('\u05D0\u05D9\u05DF \u05E0\u05EA\u05D5\u05E0\u05D9\u05DD \u05DC\u05D9\u05D9\u05E6\u05D5\u05D0'); return; }
+
+      const aoa = buildTripsExportAOA(results);
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+      // Column widths (characters) for readability.
+      ws['!cols'] = [
+        { wch: 12 }, { wch: 11 }, { wch: 5 }, { wch: 16 }, { wch: 7 },
+        { wch: 16 }, { wch: 7 }, { wch: 14 }, { wch: 22 }, { wch: 9 }
+      ];
+
+      const wb = XLSX.utils.book_new();
+      wb.Workbook = { Views: [{ RTL: true }] };
+      XLSX.utils.book_append_sheet(wb, ws, '\u05E0\u05E1\u05D9\u05E2\u05D5\u05EA');
+
+      const today = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(wb, '\u05E0\u05E1\u05D9\u05E2\u05D5\u05EA_' + today + '.xlsx');
     }
 
     function importJSON(event) {
