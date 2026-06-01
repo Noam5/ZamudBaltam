@@ -884,6 +884,21 @@
       font-family: inherit;
       font-size: 13px;
     }
+
+    .import-route-list {
+      font-size: 12px;
+      color: #555;
+      margin: 0 22px 8px;
+    }
+
+    .import-route-list .route {
+      display: inline-block;
+      background: #f1f1f1;
+      border-radius: 3px;
+      padding: 1px 6px;
+      margin: 2px 2px 0;
+      white-space: nowrap;
+    }
   </style>
 </head>
 
@@ -1224,7 +1239,7 @@
       // Deduplicate travel table (keep first occurrence of each from+to pair, preserve check flag)
       const seen = new Map();
       travelTable = travelTable.filter(t => {
-        const key = t.from + '→' + t.to;
+        const key = t.from + '	' + t.to;
         if (seen.has(key)) {
           // If any duplicate has check flag, propagate it to the kept entry
           if (t.check) seen.get(key).check = true;
@@ -2209,6 +2224,16 @@
 
       // Unknown locations warning
       if (unknownLocs.size > 0) {
+        // For each unknown location, collect the routes (from/to pairs) it appears
+        // in, so the user knows which travel-time entries they need to add.
+        const locRoutes = new Map();
+        for (const loc of unknownLocs) locRoutes.set(loc, new Set());
+        for (const t of parsed) {
+          const key = t.from + '	' + t.to;
+          if (unknownLocs.has(t.from)) locRoutes.get(t.from).add(key);
+          if (unknownLocs.has(t.to)) locRoutes.get(t.to).add(key);
+        }
+
         html += `<div class="import-error"><b>ישובים לא מוכרים (${unknownLocs.size}):</b> הישובים הבאים לא קיימים בטבלת זמני הנסיעה. `;
         html += `ניתן להוסיף כינוי או להוסיפם לטבלת זמני הנסיעה לאחר היבוא.<br><br>`;
         for (const loc of unknownLocs) {
@@ -2217,6 +2242,17 @@
           html += ` &mdash; הוסף ככינוי ל: `;
           html += `<input type="text" class="import-alias-input" data-unknown="${esc(loc)}" list="importAliasList" placeholder="שם ישוב מלא...">`;
           html += `</div>`;
+          // Show the routes this unknown location appears in (origin → destination)
+          const routes = [...locRoutes.get(loc)].map(k => k.split('	'));
+          if (routes.length) {
+            html += `<div class="import-route-list">נסיעות בקובץ: `;
+            html += routes.map(([f, to]) => {
+              const F = unknownLocs.has(f) ? `<b>${esc(f)}</b>` : esc(f);
+              const T = unknownLocs.has(to) ? `<b>${esc(to)}</b>` : esc(to);
+              return `<span class="route">מ-${F} ל-${T}</span>`;
+            }).join('');
+            html += `</div>`;
+          }
         }
         const existingLocs = [...knownLocs].sort((a, b) => a.localeCompare(b, 'he'));
         html += `<datalist id="importAliasList">${existingLocs.map(l => `<option value="${esc(l)}">`).join('')}</datalist>`;
