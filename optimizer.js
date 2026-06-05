@@ -50,5 +50,56 @@
     return { total, byMonth };
   }
 
-  return { timeToMin, endMinOf, dowOf, makeLookups, greedyBaltam };
+  // Per-day dispatch: primary car (within working hours) + optional secondary car
+  // (only inside its windows), each trip's pickup shiftable within ±tol. Returns
+  // { baltam, plan:[{trip,car,start}] }. Earliest-feasible start; full-state memo.
+  function optimizeDay(dayTrips, ctx) {
+    const { travelTime, tripPrice } = ctx.lk, hours = ctx.hours;
+    const tolOf = t => (ctx.tolByDoctor && ctx.tolByDoctor[t.doctor] != null) ? ctx.tolByDoctor[t.doctor] : (ctx.defaultTol || 0);
+    const dw = dowOf(dayTrips[0].date), wh = dw === 6 ? null : hours[dw];
+    const ws = wh ? timeToMin(wh.start) : 0, we = wh ? timeToMin(wh.end) : 0;
+    const wins = (ctx.secondaryWindows || []).filter(w => w.dow === dw);
+    const ts = dayTrips.map(t => { const s = timeToMin(t.startTime), e = endMinOf(t); return { t, s, e, dur: e - s, tl: tolOf(t), price: tripPrice(t.from, t.to), morning: s < 720 }; })
+      .sort((a, b) => (a.s - a.tl) - (b.s - b.tl) || a.e - b.e);
+    const n = ts.length;
+    // earliest start for cand on a car whose last trip ended at (prevTime,prevLoc), within [availStart,availEnd]
+    function place(cand, prevTime, prevLoc, availStart, availEnd) {
+      let lo = cand.s - cand.tl;
+      if (prevLoc != null) { const tm = travelTime(prevLoc, cand.t.from, cand.morning); if (tm === null) return null; lo = Math.max(lo, prevTime + tm); }
+      let st = Math.max(lo, cand.s - cand.tl, availStart);
+      if (st > cand.s + cand.tl) return null;
+      if (st + cand.dur > availEnd) return null;
+      return st;
+    }
+    const memo = new Map();
+    function rec(i, t1, l1, t2, l2) {
+      if (i === n) return { val: 0, plan: [] };
+      const key = i + '|' + t1 + '|' + l1 + '|' + t2 + '|' + l2;
+      const hit = memo.get(key); if (hit) return hit;
+      const c = ts[i];
+      let best = rec(i + 1, t1, l1, t2, l2); best = { val: best.val, plan: best.plan }; // skip
+      if (wh) {
+        const st = place(c, t1, l1, ws, we);
+        if (st != null) { const sub = rec(i + 1, st + c.dur, c.t.to, t2, l2), v = c.price + sub.val; if (v > best.val) best = { val: v, plan: [{ trip: c.t, car: 1, start: st }].concat(sub.plan) }; }
+      }
+      for (const w of wins) {
+        const st = place(c, t2, l2, w.start, w.end);
+        if (st != null) { const sub = rec(i + 1, t1, l1, st + c.dur, c.t.to), v = c.price + sub.val; if (v > best.val) best = { val: v, plan: [{ trip: c.t, car: 2, start: st }].concat(sub.plan) }; }
+      }
+      memo.set(key, best); return best;
+    }
+    const r = rec(0, -1, null, -1, null);
+    const totalPrice = ts.reduce((a, b) => a + b.price, 0);
+    return { baltam: totalPrice - r.val, plan: r.plan };
+  }
+
+  function optimizeAll(opts) {
+    const ctx = { lk: makeLookups(opts.travel), hours: opts.hours, tolByDoctor: opts.tolByDoctor, defaultTol: opts.defaultTol, secondaryWindows: opts.secondaryWindows };
+    const byDate = {}; for (const t of opts.trips) (byDate[t.date] = byDate[t.date] || []).push(t);
+    let baltam = 0; const plan = [];
+    for (const d of Object.keys(byDate).sort()) { const r = optimizeDay(byDate[d], ctx); baltam += r.baltam; for (const p of r.plan) plan.push(p); }
+    return { baltam, plan };
+  }
+
+  return { timeToMin, endMinOf, dowOf, makeLookups, greedyBaltam, optimizeDay, optimizeAll };
 });
