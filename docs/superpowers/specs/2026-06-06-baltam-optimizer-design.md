@@ -64,9 +64,11 @@ A caption shows: "מבוסס על 312 נסיעות אמיתיות, פברואר�
 
 ## 4. Controls (left panel)
 
-1. **Smart dispatch** (checkbox, default ON) — when ON, the single car is assigned by the
-   optimizer (the §5 DP with one car); when OFF, the baseline uses the app's existing greedy
-   `classifyTrips`. This isolates the "free" dispatch lever (₪23,500 → ₪19,400).
+1. **Smart dispatch** (checkbox, default ON) — governs only the **Optimized** figure: when ON,
+   the single car is assigned by the §5 optimizer; when OFF, the dispatch lever is not applied
+   (the one-car assignment falls back to the app's greedy `classifyTrips`). The headline
+   **Baseline** is always the greedy current figure (₪23,500), so this isolates the "free"
+   dispatch lever (₪23,500 → ₪19,400).
 
 2. **Per-doctor flexibility** — one row per doctor, each with a ± tolerance selector
    `{0, 15, 30, 60}` minutes. Preset buttons set them all at once:
@@ -75,8 +77,10 @@ A caption shows: "מבוסס על 312 נסיעות אמיתיות, פברואר�
    - *מציאותי* (default) → Natalia 15, everyone else 30
    - *אגרסיבי* → all 60
 
-   Tolerance means a pickup may be scheduled within `[orig − tol, orig + tol]`. (The model is
-   symmetric; in practice "+tol" = the doctor waits, which the user confirmed Natalia tolerates.)
+   Tolerance means a pickup may be scheduled within `[orig − tol, orig + tol]`. (Symmetric model:
+   "+tol" = the doctor waits, which the user confirmed Natalia tolerates; "−tol" assumes the
+   doctor/patient can be ready earlier — the softer assumption, which is why mid-tolerance
+   results are labeled "אומדן".)
 
 3. **Second-car windows** — a table of `(day · start · end · ₪/mo · #trips · [✓])` rows.
    - Auto-populated by the recommender (§5) with the windows the 2nd car actually uses.
@@ -131,7 +135,9 @@ removed by the 2nd car as ₪/mo and ₪ per 2nd-car-hour, with the line
 - **Headline summary bar** (mirrors the green summary bar elsewhere): Baseline Baltam,
   Optimized Baltam, Saved ₪, Saved %. Each shown both per-4-months and per-month.
 - **Lever attribution** — incremental ₪ saved by (a) smart dispatch, (b) flexibility,
-  (c) second car, computed by toggling each lever on in sequence from the baseline.
+  (c) second car, computed by switching each lever on in that **fixed order** from the baseline.
+  Attribution is order-dependent (the levers overlap); the order is stated in the UI so the
+  numbers are reproducible, and the three always sum to the headline Saved ₪.
 - **Second-car break-even** line (from §5).
 - **Rescued-trips table** — the specific trips that move from Baltam→served under the current
   settings: `# · date · day · from→to · doctor · ₪ · rescued-by (dispatch / flex / car2)`.
