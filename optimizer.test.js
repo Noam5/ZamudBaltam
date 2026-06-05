@@ -32,4 +32,12 @@ eq(f15, 18150, 'flex ±15 stable = 18150');
 eq(f30, 13975, 'flex ±30 stable = 13975');
 eq(f60, 9300, 'flex ±60 stable = 9300');
 
+// --- recommend windows: the hot clash windows must surface ---
+const rec = O.recommendWindows({ trips: OPT_TRIPS, hours: OPT_HOURS, travel: OPT_TRAVEL, defaultTol: 0 });
+const has = (dw, band) => rec.windows.some(w => w.dow === dw && w.band === band);
+console.log('  rec windows:', rec.windows.map(w => `${w.dow}/${w.band}:₪${w.price}`).join(' '));
+eq(has(5, 'AM'), true, 'recommends Friday AM window');   // dow 5 = Friday
+eq(has(1, 'PM'), true, 'recommends Monday PM window');   // dow 1 = Monday
+eq(rec.totalPrice > 12000, true, 'recommended 2nd-car value > 12000 over 4mo');
+
 console.log(ok ? '\nALL PASS' : '\nFAILURES'); process.exit(ok ? 0 : 1);

@@ -101,5 +101,24 @@
     return { baltam, plan };
   }
 
-  return { timeToMin, endMinOf, dowOf, makeLookups, greedyBaltam, optimizeDay, optimizeAll };
+  // Run with an unlimited 2nd car, then bucket the trips it serves into (dow,band) windows.
+  function recommendWindows(opts) {
+    const sec = [0, 1, 2, 3, 4, 5, 6].map(dw => ({ dow: dw, start: 0, end: 1440 }));
+    const r = optimizeAll(Object.assign({}, opts, { secondaryWindows: sec }));
+    const { tripPrice } = makeLookups(opts.travel);
+    const band = s => s < 11 * 60 ? 'AM' : s < 14 * 60 ? 'MID' : 'PM';
+    const groups = {};
+    for (const p of r.plan) {
+      if (p.car !== 2) continue;
+      const dw = dowOf(p.trip.date), b = band(p.start), key = dw + '|' + b;
+      const e = endMinOf(p.trip), price = tripPrice(p.trip.from, p.trip.to);
+      const g = groups[key] || (groups[key] = { dow: dw, band: b, start: 1e9, end: 0, count: 0, price: 0 });
+      g.start = Math.min(g.start, p.start); g.end = Math.max(g.end, p.start + (e - timeToMin(p.trip.startTime)));
+      g.count++; g.price += price;
+    }
+    const windows = Object.values(groups).sort((a, b) => b.price - a.price);
+    return { windows, totalPrice: windows.reduce((a, w) => a + w.price, 0) };
+  }
+
+  return { timeToMin, endMinOf, dowOf, makeLookups, greedyBaltam, optimizeDay, optimizeAll, recommendWindows };
 });
