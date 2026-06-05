@@ -27,7 +27,7 @@
     const { travelTime, tripPrice } = makeLookups(travel);
     const sorted = trips.map((t, i) => Object.assign({ _i: i }, t))
       .sort((a, b) => a.date !== b.date ? a.date.localeCompare(b.date) : a.startTime.localeCompare(b.startTime));
-    const res = []; let cum = 0, total = 0; const byMonth = {};
+    const res = []; let cum = 0, total = 0; const byMonth = {}; const perTrip = [];
     for (let i = 0; i < sorted.length; i++) {
       const t = sorted[i], s = timeToMin(t.startTime), rE = timeToMin(t.endTime);
       const eDur = (rE === 0 && s > 0) ? 1440 : rE, dur = eDur - s, dw = dowOf(t.date);
@@ -45,9 +45,10 @@
       if (code === 'Z') { cum += dur; if (cum > 210 * 60) code = 'B120'; }
       const price = code === 'Z' ? 0 : tripPrice(t.from, t.to);
       res.push(Object.assign({ code, price }, t));
+      perTrip.push({ ref: trips[t._i], code, price });
       if (code !== 'Z') { total += price; const m = t.date.slice(0, 7); byMonth[m] = (byMonth[m] || 0) + price; }
     }
-    return { total, byMonth };
+    return { total, byMonth, perTrip };
   }
 
   // Per-day dispatch: primary car (within working hours) + optional secondary car

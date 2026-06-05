@@ -1129,7 +1129,7 @@ if (typeof module !== "undefined" && module.exports) module.exports = { OPT_TRIP
     const { travelTime, tripPrice } = makeLookups(travel);
     const sorted = trips.map((t, i) => Object.assign({ _i: i }, t))
       .sort((a, b) => a.date !== b.date ? a.date.localeCompare(b.date) : a.startTime.localeCompare(b.startTime));
-    const res = []; let cum = 0, total = 0; const byMonth = {};
+    const res = []; let cum = 0, total = 0; const byMonth = {}; const perTrip = [];
     for (let i = 0; i < sorted.length; i++) {
       const t = sorted[i], s = timeToMin(t.startTime), rE = timeToMin(t.endTime);
       const eDur = (rE === 0 && s > 0) ? 1440 : rE, dur = eDur - s, dw = dowOf(t.date);
@@ -1147,9 +1147,10 @@ if (typeof module !== "undefined" && module.exports) module.exports = { OPT_TRIP
       if (code === 'Z') { cum += dur; if (cum > 210 * 60) code = 'B120'; }
       const price = code === 'Z' ? 0 : tripPrice(t.from, t.to);
       res.push(Object.assign({ code, price }, t));
+      perTrip.push({ ref: trips[t._i], code, price });
       if (code !== 'Z') { total += price; const m = t.date.slice(0, 7); byMonth[m] = (byMonth[m] || 0) + price; }
     }
-    return { total, byMonth };
+    return { total, byMonth, perTrip };
   }
 
   // Per-day dispatch: primary car (within working hours) + optional secondary car
@@ -1992,6 +1993,109 @@ if (typeof module !== "undefined" && module.exports) module.exports = { OPT_TRIP
     }
 
     // ============================================================
+    // BALTAM OPTIMIZER (read-only; uses injected OPT_* + optimizer globals)
+    // ============================================================
+    let optState = null;
+    function optDefaultState() {
+      const tol = {}; for (const d of OPT_DOCTORS) tol[d] = (d === 'נטליה') ? 15 : 30; // preset "מציאותי"
+      const rec = recommendWindows({ trips: OPT_TRIPS, hours: OPT_HOURS, travel: OPT_TRAVEL, tolByDoctor: tol });
+      const windows = rec.windows.map(w => ({ dow: w.dow, start: w.start, end: w.end, enabled: false, _price: w.price, _count: w.count, band: w.band }));
+      return { smartDispatch: true, tol, windows };
+    }
+    function optPreset(kind) {
+      for (const d of OPT_DOCTORS) optState.tol[d] = kind === 'none' ? 0 : kind === 'cons' ? 15 : kind === 'aggr' ? 60 : (d === 'נטליה' ? 15 : 30);
+      renderOpt();
+    }
+    function optSetTol(idx, v) { optState.tol[OPT_DOCTORS[idx]] = +v; renderOpt(); }
+    function optToggleWin(i) { optState.windows[i].enabled = !optState.windows[i].enabled; renderOpt(); }
+    function optEditWin(i, field, v) { const m = (v || '').match(/^(\d{1,2}):(\d{2})$/); if (m) { optState.windows[i][field] = (+m[1]) * 60 + (+m[2]); renderOpt(); } }
+    function optToggleSmart() { optState.smartDispatch = !optState.smartDispatch; renderOpt(); }
+    function optAddWin() {
+      const dow = +document.getElementById('optNewDow').value;
+      const s = (document.getElementById('optNewStart').value || '').match(/^(\d{1,2}):(\d{2})$/);
+      const e = (document.getElementById('optNewEnd').value || '').match(/^(\d{1,2}):(\d{2})$/);
+      if (!s || !e) { alert('שעה לא תקינה (HH:MM)'); return; }
+      optState.windows.push({ dow, start: (+s[1]) * 60 + (+s[2]), end: (+e[1]) * 60 + (+e[2]), enabled: true, _price: null, _count: null, band: 'מותאם' });
+      renderOpt();
+    }
+
+    function renderOpt() {
+      if (!optState) optState = optDefaultState();
+      const smart = optState.smartDispatch;
+      const enabledWins = optState.windows.filter(w => w.enabled).map(w => ({ dow: w.dow, start: w.start, end: w.end }));
+      const g = greedyBaltam(OPT_TRIPS, OPT_HOURS, OPT_TRAVEL);
+      const baseGreedy = g.total;
+      const afterDispatch = smart ? optimizeAll({ trips: OPT_TRIPS, hours: OPT_HOURS, travel: OPT_TRAVEL, defaultTol: 0 }).baltam : baseGreedy;
+      const afterFlex = smart ? optimizeAll({ trips: OPT_TRIPS, hours: OPT_HOURS, travel: OPT_TRAVEL, tolByDoctor: optState.tol }).baltam : afterDispatch;
+      const finalRun = smart ? optimizeAll({ trips: OPT_TRIPS, hours: OPT_HOURS, travel: OPT_TRAVEL, tolByDoctor: optState.tol, secondaryWindows: enabledWins }) : { baltam: baseGreedy, plan: [] };
+      const finalBaltam = finalRun.baltam;
+      const saved = baseGreedy - finalBaltam;
+      const dispSave = baseGreedy - afterDispatch, flexSave = afterDispatch - afterFlex, carSave = afterFlex - finalBaltam;
+      const winHrsWk = optState.windows.filter(w => w.enabled).reduce((a, w) => a + (w.end - w.start) / 60, 0);
+      const carMo = carSave / 4;
+
+      // ---- controls ----
+      let c = '<div class="alias-panel-title">ידיות ייעול</div>';
+      c += `<label style="display:block;margin:6px 0"><input type="checkbox" ${smart ? 'checked' : ''} onchange="optToggleSmart()"> שיבוץ חכם של הרכב הצמוד (חינם)</label>`;
+      c += '<div style="margin:10px 0 2px;font-weight:600">גמישות פגישות (± דקות)</div>';
+      c += '<div style="margin-bottom:4px">' + [['none', 'ללא'], ['cons', 'שמרני'], ['real', 'מציאותי'], ['aggr', 'אגרסיבי']].map(([k, l]) => `<button class="btn" style="color:#333;border-color:#999;font-size:12px;padding:2px 8px;margin:1px" onclick="optPreset('${k}')">${l}</button>`).join('') + '</div>';
+      c += '<table class="alias-table"><tbody>';
+      OPT_DOCTORS.forEach((d, i) => {
+        c += `<tr><td>${esc(d)}</td><td><select onchange="optSetTol(${i},this.value)">${[0, 15, 30, 60].map(v => `<option value="${v}" ${optState.tol[d] === v ? 'selected' : ''}>±${v}</option>`).join('')}</select></td></tr>`;
+      });
+      c += '</tbody></table>';
+      c += '<div style="margin:10px 0 2px;font-weight:600">חלונות רכב משני</div>';
+      c += '<p style="font-size:11px;color:#666;margin:0 0 4px">סמן חלון כדי לבדוק רכב משני חלקי. ₪/חודש = חיסכון מומלץ לחלון.</p>';
+      c += '<table class="alias-table"><thead><tr><th></th><th>יום</th><th>משעה</th><th>עד</th><th>₪/ח׳</th></tr></thead><tbody>';
+      optState.windows.forEach((w, i) => {
+        c += `<tr><td><input type="checkbox" ${w.enabled ? 'checked' : ''} onchange="optToggleWin(${i})"></td>` +
+          `<td style="font-weight:700">${HEB_DAYS[w.dow]}</td>` +
+          `<td><input type="text" value="${minToTime(w.start)}" style="width:46px" onchange="optEditWin(${i},'start',this.value)"></td>` +
+          `<td><input type="text" value="${minToTime(w.end)}" style="width:46px" onchange="optEditWin(${i},'end',this.value)"></td>` +
+          `<td>${w._price == null ? '—' : Math.round(w._price / 4)}</td></tr>`;
+      });
+      c += `<tr class="alias-add-row"><td></td>` +
+        `<td><select id="optNewDow">${HEB_DAYS.slice(0, 6).map((h, d) => `<option value="${d}">${h}</option>`).join('')}</select></td>` +
+        `<td><input type="text" id="optNewStart" placeholder="07:00" style="width:46px"></td>` +
+        `<td><input type="text" id="optNewEnd" placeholder="08:00" style="width:46px"></td>` +
+        `<td><button class="btn btn-add" style="font-size:11px;padding:1px 6px" onclick="optAddWin()">+</button></td></tr>`;
+      c += '</tbody></table>';
+      document.getElementById('optControls').innerHTML = c;
+
+      // ---- results ----
+      let r = '<div class="summary-bar">' +
+        `<div class="summary-item"><span class="summary-label">בלת״ם נוכחי:</span><span class="summary-value baltam">${baseGreedy} ₪ <small>(${Math.round(baseGreedy / 4)}/ח׳)</small></span></div>` +
+        `<div class="summary-item"><span class="summary-label">לאחר ייעול:</span><span class="summary-value zamud">${finalBaltam} ₪ <small>(${Math.round(finalBaltam / 4)}/ח׳)</small></span></div>` +
+        `<div class="summary-item"><span class="summary-label">חיסכון:</span><span class="summary-value zamud">${saved} ₪ <small>(${Math.round(saved / 4)}/ח׳ · ${baseGreedy ? Math.round(saved / baseGreedy * 100) : 0}%)</small></span></div>` +
+        '</div>';
+      r += '<div class="legend" style="display:block"><b>תרומת כל ידית (4 חודשים):</b> ' +
+        `שיבוץ חכם ₪${dispSave} · גמישות פגישות ₪${flexSave} · רכב משני ₪${carSave}</div>`;
+      if (winHrsWk > 0) r += `<div class="settings-note">רכב משני: <b>${winHrsWk.toFixed(1)} שעות/שבוע</b>, חוסך <b>₪${Math.round(carMo)}/חודש</b> → כדאי אם רכב משני חלקי בחלונות אלו עולה פחות מ-₪${Math.round(carMo)} לחודש (≈ ₪${winHrsWk ? Math.round(carMo / (winHrsWk * 4.345)) : 0} לשעה).</div>`;
+      r += '<div class="settings-note">מספרי הגמישות הם <b>אומדן</b> (מודל שיבוץ). שיבוץ חכם והרכב המשני מדויקים.';
+      if (typeof OPT_MISSING !== 'undefined' && OPT_MISSING.length) r += ` ${OPT_MISSING.length} מסלולים חסרים בטבלת המחירים (לא מתומחרים).`;
+      r += '</div>';
+
+      // rescued-trips table: trips that are Baltam in the greedy baseline but served after optimization
+      const baseBaltam = new Set(g.perTrip.filter(x => x.code !== 'Z').map(x => x.ref));
+      const rescued = (smart ? finalRun.plan : []).filter(p => baseBaltam.has(p.trip)).map(p => {
+        const shifted = p.start !== timeToMin(p.trip.startTime);
+        const how = p.car === 2 ? 'רכב משני' : shifted ? 'הזזת שעה' : 'שיבוץ חכם';
+        return { p, how, shifted };
+      });
+      r += `<div class="settings-note" style="margin-top:8px"><b>נסיעות שניצלו מבלת״ם: ${rescued.length}</b></div>`;
+      r += '<div class="table-wrap" style="max-height:calc(100vh - 300px)"><table><thead><tr><th>#</th><th>תאריך</th><th>יום</th><th>ממקום</th><th>למקום</th><th>רופא</th><th>איך</th><th>שעה</th></tr></thead><tbody>';
+      rescued.forEach((x, i) => {
+        const p = x.p, orig = p.trip.startTime, nt = minToTime(p.start);
+        r += `<tr><td>${i + 1}</td><td>${toDisplayDate(p.trip.date)}</td><td>${HEB_DAYS[getDayOfWeek(p.trip.date)]}</td>` +
+          `<td>${esc(p.trip.from)}</td><td>${esc(p.trip.to)}</td><td>${esc(p.trip.doctor)}</td>` +
+          `<td>${x.how}</td><td>${x.shifted ? orig + '→' + nt : nt}</td></tr>`;
+      });
+      if (!rescued.length) r += '<tr><td colspan="8" style="text-align:center;color:#999;padding:12px">אין — הפעל שיבוץ חכם / הוסף גמישות או חלון רכב משני</td></tr>';
+      r += '</tbody></table></div>';
+      document.getElementById('optResults').innerHTML = r;
+    }
+
+    // ============================================================
     // ACTIONS
     // ============================================================
 
@@ -2696,6 +2800,7 @@ if (typeof module !== "undefined" && module.exports) module.exports = { OPT_TRIP
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         this.classList.add('active');
         document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+        if (this.dataset.tab === 'opt') renderOpt();
       });
     });
 
