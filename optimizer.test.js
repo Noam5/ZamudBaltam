@@ -40,4 +40,13 @@ eq(has(5, 'AM'), true, 'recommends Friday AM window');   // dow 5 = Friday
 eq(has(1, 'PM'), true, 'recommends Monday PM window');   // dow 1 = Monday
 eq(rec.totalPrice > 12000, true, 'recommended 2nd-car value > 12000 over 4mo');
 
+// --- pooling: merging 2 doctors into one armored run reduces Baltam below the no-pool optimum ---
+const noPool = O.optimizeAll({ trips: OPT_TRIPS, hours: OPT_HOURS, travel: OPT_TRAVEL, defaultTol: 0 }).baltam;
+const withPool = O.optimizeAll({ trips: OPT_TRIPS, hours: OPT_HOURS, travel: OPT_TRAVEL, defaultTol: 0, pool: { W: 40, NEAR: 40 } });
+const pooledTrips = withPool.plan.filter(p => p.pooled > 1).length;
+console.log(`  pooling: no-pool=${noPool}  with-pool=${withPool.baltam}  pooled trips=${pooledTrips}`);
+eq(withPool.baltam < noPool, true, 'pooling reduces Baltam below no-pool optimum');
+eq(pooledTrips >= 2, true, 'pooling produces merged runs');
+// no-pool path is unaffected (regression guard already covered by 19400/4050 above)
+
 console.log(ok ? '\nALL PASS' : '\nFAILURES'); process.exit(ok ? 0 : 1);
