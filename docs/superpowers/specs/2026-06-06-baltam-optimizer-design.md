@@ -205,3 +205,21 @@ and keeps the function source in one place to avoid drift — see §8.)
   in the caption.
 - **Saturday / out-of-hours** — only a secondary window covering that time can rescue such trips;
   handled naturally by the model.
+
+## 12. Addendum (2026-06-06): Pooling lever added
+
+After the user confirmed two *different* doctors may share one armored car freely, with a
+detour/wait tolerance of ~30–40 min, a **4th lever — ride-pooling — was added** (was a v1
+non-goal in §9; superseded). The dispatch DP now runs over **units**, where a unit is either a
+single trip or a **merged 2-doctor run** (divergent `O→D1→D2`, convergent `O1→O2→D`, or
+identical route). Pooling pairs are formed greedily preferring the **tightest** (smallest extra
+detour) merge; each day is dispatched **both** pooled and un-pooled and the lower-Baltam result
+is kept, so pooling can never make a day worse (monotonic). UI: a toggle + a "max detour"
+selector (20/30/40 min, default 40); attribution shows the four levers
+(dispatch · flexibility · pooling · 2nd-car) summing to the headline.
+
+**Measured value:** on the validated dataset, pooling removes ~₪1,200/4mo (≈ **₪300/mo**) *on top
+of* smart-dispatch + realistic flexibility. It is the smallest lever — the dominant Baltam cost
+(Natalia's Monday אלון מורה runs) is a remote solo destination that can never pool. Regression
+anchors (greedy 23,500 · 1-car 19,400 · 2-car 4,050 · flex curve) are unchanged because the
+no-pool path is identical when `pool` is unset.
