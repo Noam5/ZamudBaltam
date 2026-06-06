@@ -1153,25 +1153,65 @@ if (typeof module !== "undefined" && module.exports) module.exports = { OPT_TRIP
     return { total, byMonth, perTrip };
   }
 
-  // Per-day dispatch: primary car (within working hours) + optional secondary car
-  // (only inside its windows), each trip's pickup shiftable within ±tol. Returns
-  // { baltam, plan:[{trip,car,start}] }. Earliest-feasible start; full-state memo.
-  function optimizeDay(dayTrips, ctx) {
-    const { travelTime, tripPrice } = ctx.lk, hours = ctx.hours;
-    const tolOf = t => (ctx.tolByDoctor && ctx.tolByDoctor[t.doctor] != null) ? ctx.tolByDoctor[t.doctor] : (ctx.defaultTol || 0);
-    const dw = dowOf(dayTrips[0].date), wh = dw === 6 ? null : hours[dw];
-    const ws = wh ? timeToMin(wh.start) : 0, we = wh ? timeToMin(wh.end) : 0;
-    const wins = (ctx.secondaryWindows || []).filter(w => w.dow === dw);
-    const ts = dayTrips.map(t => { const s = timeToMin(t.startTime), e = endMinOf(t); return { t, s, e, dur: e - s, tl: tolOf(t), price: tripPrice(t.from, t.to), morning: s < 720 }; })
-      .sort((a, b) => (a.s - a.tl) - (b.s - b.tl) || a.e - b.e);
-    const n = ts.length;
-    // earliest start for cand on a car whose last trip ended at (prevTime,prevLoc), within [availStart,availEnd]
-    function place(cand, prevTime, prevLoc, availStart, availEnd) {
-      let lo = cand.s - cand.tl;
-      if (prevLoc != null) { const tm = travelTime(prevLoc, cand.t.from, cand.morning); if (tm === null) return null; lo = Math.max(lo, prevTime + tm); }
-      let st = Math.max(lo, cand.s - cand.tl, availStart);
-      if (st > cand.s + cand.tl) return null;
-      if (st + cand.dur > availEnd) return null;
+  function tolOfTrip(t, ctx) { return (ctx.tolByDoctor && ctx.tolByDoctor[t.doctor] != null) ? ctx.tolByDoctor[t.doctor] : (ctx.defaultTol || 0); }
+  function singleUnit(t, ctx) { const s = timeToMin(t.startTime), e = endMinOf(t); return { trips: [t], from: t.from, to: t.to, s, e, dur: e - s, tl: tolOfTrip(t, ctx), price: ctx.lk.tripPrice(t.from, t.to), morning: s < 720, isPool: false }; }
+
+  // Merge two compatible trips into ONE multi-stop armored run (pooling, groups of 2).
+  function mergePair(a, b, ctx) {
+    if (a.doctor === b.doctor) return null;
+    const { travelTime, tripPrice } = ctx.lk;
+    const sa = timeToMin(a.startTime), sb = timeToMin(b.startTime), morning = Math.min(sa, sb) < 720;
+    let from, to, dur = null;
+    if (a.from === b.from && a.to === b.to) { from = a.from; to = a.to; dur = travelTime(a.from, a.to, morning); }
+    else if (a.from === b.from) { // divergent: O -> d1 -> d2 (nearest first)
+      const O = a.from; const d = [a.to, b.to].sort((x, y) => (travelTime(O, x, morning) == null ? 1e9 : travelTime(O, x, morning)) - (travelTime(O, y, morning) == null ? 1e9 : travelTime(O, y, morning)));
+      const l1 = travelTime(O, d[0], morning), l2 = travelTime(d[0], d[1], morning);
+      if (l1 == null || l2 == null) return null; from = O; to = d[1]; dur = l1 + l2;
+    } else if (a.to === b.to) { // convergent: o1 -> o2 -> D (farther first)
+      const D = a.to; const o = [a.from, b.from].sort((x, y) => (travelTime(y, D, morning) == null ? 0 : travelTime(y, D, morning)) - (travelTime(x, D, morning) == null ? 0 : travelTime(x, D, morning)));
+      const l1 = travelTime(o[0], o[1], morning), l2 = travelTime(o[1], D, morning);
+      if (l1 == null || l2 == null) return null; from = o[0]; to = D; dur = l1 + l2;
+    } else return null;
+    if (dur == null) return null;
+    const s = Math.min(sa, sb);
+    return { trips: [a, b], from, to, s, e: s + dur, dur, tl: Math.min(tolOfTrip(a, ctx), tolOfTrip(b, ctx)), price: tripPrice(a.from, a.to) + tripPrice(b.from, b.to), morning, isPool: true };
+  }
+
+  // Build dispatch units; with ctx.pool, greedily pair compatible trips into shared runs.
+  function buildUnits(dayTrips, ctx) {
+    if (!ctx.pool) return dayTrips.map(t => singleUnit(t, ctx));
+    const { travelTime } = ctx.lk, W = ctx.pool.W, NEAR = ctx.pool.NEAR;
+    const near = (x, y, mo) => { const tm = travelTime(x, y, mo); return tm != null && tm <= NEAR; };
+    const arr = dayTrips.slice().sort((a, b) => timeToMin(a.startTime) - timeToMin(b.startTime));
+    const used = new Set(), units = [];
+    for (const a of arr) {
+      if (used.has(a)) continue;
+      let bestM = null, bestB = null;
+      for (const b of arr) {
+        if (b === a || used.has(b) || b.doctor === a.doctor) continue;
+        const mo = timeToMin(a.startTime) < 720;
+        if (Math.abs(timeToMin(b.startTime) - timeToMin(a.startTime)) > W) continue;
+        const compat = (a.from === b.from && a.to === b.to) || (a.from === b.from && near(a.to, b.to, mo)) || (a.to === b.to && near(a.from, b.from, mo));
+        if (!compat) continue;
+        const m = mergePair(a, b, ctx);
+        if (m && (bestM === null || m.dur < bestM.dur)) { bestM = m; bestB = b; } // tightest pool
+      }
+      if (bestM) { used.add(a); used.add(bestB); units.push(bestM); }
+      else { used.add(a); units.push(singleUnit(a, ctx)); }
+    }
+    return units;
+  }
+
+  // Dispatch a fixed unit list over primary(+secondary) car; returns {baltam, planUnits}.
+  function dispatchUnits(units, wh, ws, we, wins, travelTime) {
+    units = units.slice().sort((a, b) => (a.s - a.tl) - (b.s - b.tl) || a.e - b.e);
+    const n = units.length;
+    function place(c, prevTime, prevLoc, availStart, availEnd) {
+      let lo = c.s - c.tl;
+      if (prevLoc != null) { const tm = travelTime(prevLoc, c.from, c.morning); if (tm === null) return null; lo = Math.max(lo, prevTime + tm); }
+      let st = Math.max(lo, c.s - c.tl, availStart);
+      if (st > c.s + c.tl) return null;
+      if (st + c.dur > availEnd) return null;
       return st;
     }
     const memo = new Map();
@@ -1179,25 +1219,39 @@ if (typeof module !== "undefined" && module.exports) module.exports = { OPT_TRIP
       if (i === n) return { val: 0, plan: [] };
       const key = i + '|' + t1 + '|' + l1 + '|' + t2 + '|' + l2;
       const hit = memo.get(key); if (hit) return hit;
-      const c = ts[i];
+      const c = units[i];
       let best = rec(i + 1, t1, l1, t2, l2); best = { val: best.val, plan: best.plan }; // skip
       if (wh) {
         const st = place(c, t1, l1, ws, we);
-        if (st != null) { const sub = rec(i + 1, st + c.dur, c.t.to, t2, l2), v = c.price + sub.val; if (v > best.val) best = { val: v, plan: [{ trip: c.t, car: 1, start: st }].concat(sub.plan) }; }
+        if (st != null) { const sub = rec(i + 1, st + c.dur, c.to, t2, l2), v = c.price + sub.val; if (v > best.val) best = { val: v, plan: [{ unit: c, car: 1, start: st }].concat(sub.plan) }; }
       }
       for (const w of wins) {
         const st = place(c, t2, l2, w.start, w.end);
-        if (st != null) { const sub = rec(i + 1, t1, l1, st + c.dur, c.t.to), v = c.price + sub.val; if (v > best.val) best = { val: v, plan: [{ trip: c.t, car: 2, start: st }].concat(sub.plan) }; }
+        if (st != null) { const sub = rec(i + 1, t1, l1, st + c.dur, c.to), v = c.price + sub.val; if (v > best.val) best = { val: v, plan: [{ unit: c, car: 2, start: st }].concat(sub.plan) }; }
       }
       memo.set(key, best); return best;
     }
     const r = rec(0, -1, null, -1, null);
-    const totalPrice = ts.reduce((a, b) => a + b.price, 0);
-    return { baltam: totalPrice - r.val, plan: r.plan };
+    const totalPrice = units.reduce((a, u) => a + u.price, 0);
+    return { baltam: totalPrice - r.val, planUnits: r.plan };
+  }
+
+  // Per-day dispatch. With pooling, also try the paired-units layout and keep whichever
+  // gives lower Baltam — so pooling can never make a day worse than not pooling.
+  function optimizeDay(dayTrips, ctx) {
+    const { travelTime } = ctx.lk, hours = ctx.hours;
+    const dw = dowOf(dayTrips[0].date), wh = dw === 6 ? null : hours[dw];
+    const ws = wh ? timeToMin(wh.start) : 0, we = wh ? timeToMin(wh.end) : 0;
+    const wins = (ctx.secondaryWindows || []).filter(w => w.dow === dw);
+    let best = dispatchUnits(dayTrips.map(t => singleUnit(t, ctx)), wh, ws, we, wins, travelTime);
+    if (ctx.pool) { const alt = dispatchUnits(buildUnits(dayTrips, ctx), wh, ws, we, wins, travelTime); if (alt.baltam < best.baltam) best = alt; }
+    const plan = [];
+    for (const p of best.planUnits) for (const trip of p.unit.trips) plan.push({ trip, car: p.car, start: p.start, pooled: p.unit.isPool ? p.unit.trips.length : 1 });
+    return { baltam: best.baltam, plan };
   }
 
   function optimizeAll(opts) {
-    const ctx = { lk: makeLookups(opts.travel), hours: opts.hours, tolByDoctor: opts.tolByDoctor, defaultTol: opts.defaultTol, secondaryWindows: opts.secondaryWindows };
+    const ctx = { lk: makeLookups(opts.travel), hours: opts.hours, tolByDoctor: opts.tolByDoctor, defaultTol: opts.defaultTol, secondaryWindows: opts.secondaryWindows, pool: opts.pool };
     const byDate = {}; for (const t of opts.trips) (byDate[t.date] = byDate[t.date] || []).push(t);
     let baltam = 0; const plan = [];
     for (const d of Object.keys(byDate).sort()) { const r = optimizeDay(byDate[d], ctx); baltam += r.baltam; for (const p of r.plan) plan.push(p); }
@@ -2000,7 +2054,7 @@ if (typeof module !== "undefined" && module.exports) module.exports = { OPT_TRIP
       const tol = {}; for (const d of OPT_DOCTORS) tol[d] = (d === 'נטליה') ? 15 : 30; // preset "מציאותי"
       const rec = recommendWindows({ trips: OPT_TRIPS, hours: OPT_HOURS, travel: OPT_TRAVEL, tolByDoctor: tol });
       const windows = rec.windows.map(w => ({ dow: w.dow, start: w.start, end: w.end, enabled: false, _price: w.price, _count: w.count, band: w.band }));
-      return { smartDispatch: true, tol, windows };
+      return { smartDispatch: true, tol, windows, pool: { on: true, near: 40 } };
     }
     function optPreset(kind) {
       for (const d of OPT_DOCTORS) optState.tol[d] = kind === 'none' ? 0 : kind === 'cons' ? 15 : kind === 'aggr' ? 60 : (d === 'נטליה' ? 15 : 30);
@@ -2010,6 +2064,8 @@ if (typeof module !== "undefined" && module.exports) module.exports = { OPT_TRIP
     function optToggleWin(i) { optState.windows[i].enabled = !optState.windows[i].enabled; renderOpt(); }
     function optEditWin(i, field, v) { const m = (v || '').match(/^(\d{1,2}):(\d{2})$/); if (m) { optState.windows[i][field] = (+m[1]) * 60 + (+m[2]); renderOpt(); } }
     function optToggleSmart() { optState.smartDispatch = !optState.smartDispatch; renderOpt(); }
+    function optTogglePool() { optState.pool.on = !optState.pool.on; renderOpt(); }
+    function optSetPoolNear(v) { optState.pool.near = +v; renderOpt(); }
     function optAddWin() {
       const dow = +document.getElementById('optNewDow').value;
       const s = (document.getElementById('optNewStart').value || '').match(/^(\d{1,2}):(\d{2})$/);
@@ -2022,15 +2078,17 @@ if (typeof module !== "undefined" && module.exports) module.exports = { OPT_TRIP
     function renderOpt() {
       if (!optState) optState = optDefaultState();
       const smart = optState.smartDispatch;
+      const poolOpt = optState.pool.on ? { W: optState.pool.near, NEAR: optState.pool.near } : null;
       const enabledWins = optState.windows.filter(w => w.enabled).map(w => ({ dow: w.dow, start: w.start, end: w.end }));
       const g = greedyBaltam(OPT_TRIPS, OPT_HOURS, OPT_TRAVEL);
       const baseGreedy = g.total;
       const afterDispatch = smart ? optimizeAll({ trips: OPT_TRIPS, hours: OPT_HOURS, travel: OPT_TRAVEL, defaultTol: 0 }).baltam : baseGreedy;
       const afterFlex = smart ? optimizeAll({ trips: OPT_TRIPS, hours: OPT_HOURS, travel: OPT_TRAVEL, tolByDoctor: optState.tol }).baltam : afterDispatch;
-      const finalRun = smart ? optimizeAll({ trips: OPT_TRIPS, hours: OPT_HOURS, travel: OPT_TRAVEL, tolByDoctor: optState.tol, secondaryWindows: enabledWins }) : { baltam: baseGreedy, plan: [] };
+      const afterPool = smart ? optimizeAll({ trips: OPT_TRIPS, hours: OPT_HOURS, travel: OPT_TRAVEL, tolByDoctor: optState.tol, pool: poolOpt }).baltam : afterFlex;
+      const finalRun = smart ? optimizeAll({ trips: OPT_TRIPS, hours: OPT_HOURS, travel: OPT_TRAVEL, tolByDoctor: optState.tol, pool: poolOpt, secondaryWindows: enabledWins }) : { baltam: baseGreedy, plan: [] };
       const finalBaltam = finalRun.baltam;
       const saved = baseGreedy - finalBaltam;
-      const dispSave = baseGreedy - afterDispatch, flexSave = afterDispatch - afterFlex, carSave = afterFlex - finalBaltam;
+      const dispSave = baseGreedy - afterDispatch, flexSave = afterDispatch - afterFlex, poolSave = afterFlex - afterPool, carSave = afterPool - finalBaltam;
       const winHrsWk = optState.windows.filter(w => w.enabled).reduce((a, w) => a + (w.end - w.start) / 60, 0);
       const carMo = carSave / 4;
 
@@ -2044,6 +2102,8 @@ if (typeof module !== "undefined" && module.exports) module.exports = { OPT_TRIP
         c += `<tr><td>${esc(d)}</td><td><select onchange="optSetTol(${i},this.value)">${[0, 15, 30, 60].map(v => `<option value="${v}" ${optState.tol[d] === v ? 'selected' : ''}>±${v}</option>`).join('')}</select></td></tr>`;
       });
       c += '</tbody></table>';
+      c += '<div style="margin:10px 0 2px;font-weight:600">מיזוג נסיעות (2 רופאים ברכב אחד)</div>';
+      c += `<label style="display:block;margin:4px 0;font-size:13px"><input type="checkbox" ${optState.pool.on ? 'checked' : ''} onchange="optTogglePool()"> אפשר מיזוג · מקס׳ עיקוף <select onchange="optSetPoolNear(this.value)">${[20, 30, 40].map(v => `<option value="${v}" ${optState.pool.near === v ? 'selected' : ''}>${v} דק׳</option>`).join('')}</select></label>`;
       c += '<div style="margin:10px 0 2px;font-weight:600">חלונות רכב משני</div>';
       c += '<p style="font-size:11px;color:#666;margin:0 0 4px">סמן חלון כדי לבדוק רכב משני חלקי. ₪/חודש = חיסכון מומלץ לחלון.</p>';
       c += '<table class="alias-table"><thead><tr><th></th><th>יום</th><th>משעה</th><th>עד</th><th>₪/ח׳</th></tr></thead><tbody>';
@@ -2069,7 +2129,7 @@ if (typeof module !== "undefined" && module.exports) module.exports = { OPT_TRIP
         `<div class="summary-item"><span class="summary-label">חיסכון:</span><span class="summary-value zamud">${saved} ₪ <small>(${Math.round(saved / 4)}/ח׳ · ${baseGreedy ? Math.round(saved / baseGreedy * 100) : 0}%)</small></span></div>` +
         '</div>';
       r += '<div class="legend" style="display:block"><b>תרומת כל ידית (4 חודשים):</b> ' +
-        `שיבוץ חכם ₪${dispSave} · גמישות פגישות ₪${flexSave} · רכב משני ₪${carSave}</div>`;
+        `שיבוץ חכם ₪${dispSave} · גמישות פגישות ₪${flexSave} · מיזוג נסיעות ₪${poolSave} · רכב משני ₪${carSave}</div>`;
       if (winHrsWk > 0) r += `<div class="settings-note">רכב משני: <b>${winHrsWk.toFixed(1)} שעות/שבוע</b>, חוסך <b>₪${Math.round(carMo)}/חודש</b> → כדאי אם רכב משני חלקי בחלונות אלו עולה פחות מ-₪${Math.round(carMo)} לחודש (≈ ₪${winHrsWk ? Math.round(carMo / (winHrsWk * 4.345)) : 0} לשעה).</div>`;
       r += '<div class="settings-note">מספרי הגמישות הם <b>אומדן</b> (מודל שיבוץ). שיבוץ חכם והרכב המשני מדויקים.';
       if (typeof OPT_MISSING !== 'undefined' && OPT_MISSING.length) r += ` ${OPT_MISSING.length} מסלולים חסרים בטבלת המחירים (לא מתומחרים).`;
@@ -2079,7 +2139,7 @@ if (typeof module !== "undefined" && module.exports) module.exports = { OPT_TRIP
       const baseBaltam = new Set(g.perTrip.filter(x => x.code !== 'Z').map(x => x.ref));
       const rescued = (smart ? finalRun.plan : []).filter(p => baseBaltam.has(p.trip)).map(p => {
         const shifted = p.start !== timeToMin(p.trip.startTime);
-        const how = p.car === 2 ? 'רכב משני' : shifted ? 'הזזת שעה' : 'שיבוץ חכם';
+        const how = p.pooled > 1 ? 'מיזוג' : p.car === 2 ? 'רכב משני' : shifted ? 'הזזת שעה' : 'שיבוץ חכם';
         return { p, how, shifted };
       });
       r += `<div class="settings-note" style="margin-top:8px"><b>נסיעות שניצלו מבלת״ם: ${rescued.length}</b></div>`;
