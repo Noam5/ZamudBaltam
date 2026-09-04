@@ -2453,6 +2453,28 @@ if (typeof module !== "undefined" && module.exports) module.exports = { OPT_TRIP
       return { from, to, doctor };
     }
 
+    // Orzion reorders columns between exports (Feb-May put סוג הרכב at col 7 and
+    // שעת סיום at col 9; אוגוסט 26 swaps them), so locate them by header label.
+    const IMPORT_COLS = [
+      ['desc', /^תאור$/],
+      ['endTime', /^שעת\s*סיום$/],
+      ['startTime', /^שעת\s*התחלה$/],
+      ['date', /^תאריך$/],
+    ];
+    function findImportColumns(rows) {
+      const norm = v => String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
+      for (const row of rows) {
+        if (!row) continue;
+        const cols = {};
+        for (const [key, re] of IMPORT_COLS) {
+          const i = row.findIndex(c => re.test(norm(c)));
+          if (i >= 0) cols[key] = i;
+        }
+        if (IMPORT_COLS.every(([key]) => key in cols)) return cols;
+      }
+      return null;
+    }
+
     function handleXLSImport(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -2466,17 +2488,23 @@ if (typeof module !== "undefined" && module.exports) module.exports = { OPT_TRIP
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
           const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true });
 
+          const col = findImportColumns(rows);
+          if (!col) {
+            alert('לא נמצאה שורת כותרות בקובץ (נדרשות העמודות: תאור, שעת התחלה, שעת סיום, תאריך)');
+            return;
+          }
+
           const parsed = [];
           for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
-            if (!row || !row[1]) continue;
-            const desc = String(row[1]);
+            if (!row || !row[col.desc]) continue;
+            const desc = String(row[col.desc]);
             const route = parseExcelDescription(desc);
             if (!route) continue;
 
-            const startTime = parseExcelTimeFraction(row[10]);
-            const endTime = parseExcelTimeFraction(row[9]);
-            const date = parseExcelSerialDate(row[11]);
+            const startTime = parseExcelTimeFraction(row[col.startTime]);
+            const endTime = parseExcelTimeFraction(row[col.endTime]);
+            const date = parseExcelSerialDate(row[col.date]);
 
             if (!date || !startTime || !endTime) continue;
 
