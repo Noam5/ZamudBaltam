@@ -324,6 +324,21 @@
     /* --- Inline cell editing --- */
     td.editable {
       cursor: cell;
+      padding: 0;
+    }
+
+    td.editable > input,
+    td.editable > select,
+    td.editable > .time-cell,
+    td.editable > .date-cell {
+      height: 100%;
+    }
+
+    td.editable > input,
+    td.editable > select,
+    td.editable > .time-cell > input,
+    td.editable > .date-cell > input {
+      padding: 3px 6px;
     }
 
     td.editable:hover {
@@ -354,15 +369,28 @@
     }
 
     td input[type="text"] {
+      width: 100%;
+    }
+
+    /* Intrinsic field sizes, used only while measuring default column widths. */
+    table.col-measuring input[type="text"] {
       width: 90px;
     }
 
-    td input[placeholder="DD-MM-YYYY"] {
+    table.col-measuring input[placeholder="DD-MM-YYYY"] {
       width: 100px;
     }
 
-    td input[placeholder="HH:MM"] {
+    table.col-measuring input[placeholder="HH:MM"] {
       width: 60px;
+    }
+
+    td input[placeholder="DD-MM-YYYY"] {
+      width: 100%;
+    }
+
+    td input[placeholder="HH:MM"] {
+      width: 100%;
       text-align: center;
     }
 
@@ -1793,8 +1821,13 @@ if (typeof module !== "undefined" && module.exports) module.exports = { OPT_TRIP
       if (!n) return;
 
       // Measure while the table is still auto-laid-out, so the untouched
-      // default keeps exactly the proportions it has today.
+      // default keeps exactly the proportions it has today. Fields render at
+      // width:100% to fill their cell, which would stretch an auto-laid-out
+      // table and make these numbers meaningless — so measure them at their
+      // intrinsic size instead.
+      table.classList.add('col-measuring');
       const natural = ths.map(th => Math.max(COL_MIN_WIDTH, Math.round(th.getBoundingClientRect().width)));
+      table.classList.remove('col-measuring');
 
       const saved = readColPrefs()[tableId] || {};
       const order = isValidOrder(saved.order, n) ? saved.order.slice() : ths.map((_, i) => i);
