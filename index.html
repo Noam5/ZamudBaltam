@@ -2391,6 +2391,10 @@ if (typeof module !== "undefined" && module.exports) module.exports = { OPT_TRIP
       document.getElementById('countB').textContent = countB;
       document.getElementById('countBML').textContent = countBML;
       document.getElementById('countB120').textContent = countB120;
+
+      // The gantt is these same trips drawn on a timeline, and its window band
+      // comes from workingHours — so it has to move whenever this table does.
+      renderGantt();
     }
 
     function formatDate(dateStr) {
@@ -2574,11 +2578,10 @@ if (typeof module !== "undefined" && module.exports) module.exports = { OPT_TRIP
     }
 
     function renderAll() {
-      renderTrips();
+      renderTrips();   // also refreshes the gantt
       renderTravel();
       renderAliases();
       renderHours();
-      renderGantt();
     }
 
     // ============================================================
