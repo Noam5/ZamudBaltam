@@ -2425,7 +2425,7 @@ if (typeof module !== "undefined" && module.exports) module.exports = { OPT_TRIP
     function parseExcelDescription(desc) {
       if (!desc) return null;
       desc = String(desc);
-      const m = desc.match(/(?:איסוף|פיזור):\s*(.+?)\s*-\s+(.+)/);
+      const m = desc.match(/(?:איסוף|פיזור)\s*:\s*(.+?)\s*-\s+(.+)/);
       if (!m) return null;
 
       let from = m[1].trim();
