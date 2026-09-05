@@ -730,7 +730,10 @@
     }
 
     .alias-panel {
-      width: 280px;
+      /* Wide enough for the "ישוב מלא" column: the longest aliases carry a
+         doctor and phone number, which pushed that column out of sight at
+         280px. Shrinks back down when the window can't spare the room. */
+      width: 545px;
       min-width: 280px;
       background: #f9f9f9;
       border-right: 2px solid #ccc;
