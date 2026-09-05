@@ -654,54 +654,209 @@
       background: #d6e8f7;
     }
 
-    /* --- Gantt chart --- */
-    .gantt-controls {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 8px;
-      font-size: 15px;
+    /* --- גאנט נסיעות ---------------------------------------------------
+       The contracted working window is drawn as lit ground and everything
+       outside it stays grey, because that boundary is what turns a free
+       trip (צמוד) into a billed one (בלת"ם / מחוץ לשעות). Bars are placed
+       continuously rather than snapped to cells, so 07:10 reads as 07:10. */
+    .gx {
+      --gx-ink: #16281f;
+      --gx-muted: #6d7c73;
+      --gx-off: #eef0eb;
+      --gx-rule: #d5ddd6;
+      --gx-gutter: 210px;
+      --gx-track-min: 560px;
+      color: var(--gx-ink);
     }
 
-    .gantt-controls select {
-      font-size: 15px;
+    .gx-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      flex-wrap: wrap;
+      padding-bottom: 10px;
+    }
+
+    .gx-toolbar select {
       font-family: inherit;
+      font-size: 15px;
       padding: 3px 8px;
     }
 
-    #ganttTable th,
-    #ganttTable td {
-      padding: 1px 2px;
-      text-align: center;
-      font-size: 12px;
+    .gx-legend {
+      display: flex;
+      gap: 15px;
+      margin-inline-start: auto;
+      font-size: 13px;
+      color: var(--gx-muted);
     }
 
-    #ganttTable th {
-      background: #e2efda;
+    .gx-key {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .gx-key i {
+      width: 20px;
+      height: 8px;
+      border-radius: 2px;
+    }
+
+    .gx-scroll {
+      overflow: auto;
+      max-height: calc(100vh - 175px);
+      border: 1px solid var(--gx-rule);
+      background: #fff;
+    }
+
+    .gx-ruler {
       position: sticky;
       top: 0;
-      z-index: 2;
+      z-index: 3;
+      display: flex;
+      background: #fff;
+      border-bottom: 1px solid var(--gx-rule);
     }
 
-    #ganttTable td.gantt-info {
-      text-align: right;
-      padding: 2px 6px;
-      font-size: 14px;
+    .gx-spacer {
+      width: var(--gx-gutter);
+      flex: none;
+    }
+
+    .gx-track {
+      position: relative;
+      flex: 1;
+      min-width: var(--gx-track-min);
+    }
+
+    .gx-ruler .gx-track {
+      height: 27px;
+    }
+
+    .gx-tick {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      border-inline-start: 1px solid var(--gx-rule);
+      padding-inline-start: 5px;
+      font-size: 11px;
+      line-height: 27px;
+      color: var(--gx-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .gx-day {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      padding: 10px 12px 6px;
+      border-top: 1px solid var(--gx-rule);
+    }
+
+    .gx-day:first-child {
+      border-top: 0;
+    }
+
+    .gx-day-name {
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .gx-day-date,
+    .gx-day-window,
+    .gx-day-stats {
+      font-size: 12px;
+      color: var(--gx-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .gx-day-stats {
+      margin-inline-start: auto;
+    }
+
+    .gx-cost {
+      color: #c65100;
+      font-weight: 700;
+    }
+
+    .gx-peak {
+      color: var(--gx-ink);
+      font-weight: 700;
+    }
+
+    .gx-row {
+      display: flex;
+      align-items: stretch;
+    }
+
+    .gx-row:hover .gx-gutter,
+    .gx-row:hover .gx-track {
+      background-color: #f1f6f2;
+    }
+
+    .gx-gutter {
+      width: var(--gx-gutter);
+      flex: none;
+      padding: 4px 12px 4px 10px;
+      overflow: hidden;
+    }
+
+    .gx-route {
+      font-size: 13px;
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
-    #ganttTable td.gantt-bar {
-      min-width: 18px;
-      width: 18px;
-      padding: 0;
+    .gx-meta {
+      font-size: 11px;
+      color: var(--gx-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-variant-numeric: tabular-nums;
     }
 
-    #ganttTable td.gantt-filled {
-      background: #b7e1cd;
+    .gx-row .gx-track {
+      height: 30px;
+      background: var(--gx-off);
+      border-inline-start: 1px solid var(--gx-rule);
     }
 
-    #ganttTable tr:nth-child(even) td.gantt-info {
-      background: #f9f9f9;
+    .gx-shift {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      background: #fff;
+      box-shadow: inset 1px 0 0 #bfcdc2, inset -1px 0 0 #bfcdc2;
+    }
+
+    .gx-hour {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: var(--gx-rule);
+    }
+
+    .gx-bar {
+      position: absolute;
+      top: 8px;
+      height: 14px;
+      min-width: 3px;
+      border-radius: 2px;
+    }
+
+    .gx-bar.c-Z    { background: #217346; }
+    .gx-bar.c-B    { background: #c65100; }
+    .gx-bar.c-BML  { background: #c00; }
+    .gx-bar.c-B120 { background: #6a1b9a; }
+
+    .gx-empty {
+      padding: 34px;
+      text-align: center;
+      color: var(--gx-muted);
     }
 
     @media print {
@@ -713,7 +868,7 @@
       td.del-cell,
       tr.add-row,
       .summary-bar,
-      .gantt-controls {
+      .gx-toolbar {
         display: none !important;
       }
 
@@ -1116,9 +1271,9 @@
   </div>
 
   <!-- GANTT TAB -->
-  <div id="tab-gantt" class="tab-content">
+  <div id="tab-gantt" class="tab-content gx">
     <div class="tab-inner">
-      <div class="gantt-controls">
+      <div class="gx-toolbar">
         <span>יום בשבוע:</span>
         <select id="ganttDay" onchange="renderGantt()">
           <option value="0">א׳ (ראשון)</option>
@@ -1129,12 +1284,16 @@
           <option value="5">ו׳ (שישי)</option>
           <option value="-1" selected>כל הימים</option>
         </select>
+        <div class="gx-legend">
+          <span class="gx-key"><i style="background:#217346"></i>צמוד</span>
+          <span class="gx-key"><i style="background:#c65100"></i>בלת"ם</span>
+          <span class="gx-key"><i style="background:#c00"></i>מחוץ לשעות</span>
+          <span class="gx-key"><i style="background:#fff;box-shadow:inset 0 0 0 1px #bfcdc2"></i>שעות עבודה</span>
+        </div>
       </div>
-      <div class="table-wrap" style="max-height:calc(100vh - 140px)">
-        <table id="ganttTable">
-          <thead id="ganttHead"></thead>
-          <tbody id="ganttBody"></tbody>
-        </table>
+      <div class="gx-scroll">
+        <div class="gx-ruler" id="ganttRuler"></div>
+        <div id="ganttBoard"></div>
       </div>
     </div>
   </div>
@@ -2315,61 +2474,103 @@ if (typeof module !== "undefined" && module.exports) module.exports = { OPT_TRIP
     function renderGantt() {
       const results = classifyTrips();
       const dayFilter = parseInt(document.getElementById('ganttDay').value);
-
-      // Filter by day of week (-1 = all)
       const filtered = dayFilter === -1
         ? results
         : results.filter(r => getDayOfWeek(r.date) === dayFilter);
 
-      // Time slots: 06:00 to 20:00 in 15-minute intervals
-      const slotStart = 6 * 60;  // 06:00
-      const slotEnd = 20 * 60;   // 20:00
-      const slotStep = 15;
-      const slots = [];
-      for (let m = slotStart; m < slotEnd; m += slotStep) {
-        slots.push(m);
+      const board = document.getElementById('ganttBoard');
+      const ruler = document.getElementById('ganttRuler');
+
+      if (!filtered.length) {
+        ruler.innerHTML = '';
+        board.innerHTML = '<div class="gx-empty">אין נסיעות ליום זה</div>';
+        return;
       }
 
-      // Build header
-      const thead = document.getElementById('ganttHead');
-      let headHtml = '<tr><th class="gantt-info">מספר ואוצ׳ר</th><th class="gantt-info">תאריך</th><th class="gantt-info">ממקום</th><th class="gantt-info">למקום</th><th class="gantt-info">התחלה</th><th class="gantt-info">סיום</th>';
-      for (const m of slots) {
-        const h = String(Math.floor(m / 60)).padStart(2, '0');
-        const mm = String(m % 60).padStart(2, '0');
-        // Show label only on the hour
-        headHtml += `<th class="gantt-bar">${m % 60 === 0 ? h + ':' + mm : ''}</th>`;
+      // A trip ending at 00:00 ran to midnight.
+      const endOf = r => {
+        const s = timeToMin(r.startTime), e = timeToMin(r.endTime);
+        return (e === 0 && s > 0) ? 1440 : e;
+      };
+
+      // Group by date, and size the timeline to the real extent of what's on
+      // screen — including each day's contracted window, so the lit band is
+      // never cut off.
+      const byDate = {};
+      let lo = 1440, hi = 0;
+      for (const r of filtered) {
+        (byDate[r.date] = byDate[r.date] || []).push(r);
+        lo = Math.min(lo, timeToMin(r.startTime));
+        hi = Math.max(hi, endOf(r));
       }
-      headHtml += '</tr>';
-      thead.innerHTML = headHtml;
+      for (const date of Object.keys(byDate)) {
+        const w = getWorkingHoursForDay(getDayOfWeek(date));
+        if (w) { lo = Math.min(lo, timeToMin(w.start)); hi = Math.max(hi, timeToMin(w.end)); }
+      }
+      lo = Math.floor(lo / 60) * 60;
+      hi = Math.ceil(hi / 60) * 60;
+      const span = Math.max(60, hi - lo);
+      const at = m => ((m - lo) / span) * 100;
 
-      // Build rows
-      let bodyHtml = '';
-      for (let i = 0; i < filtered.length; i++) {
-        const r = filtered[i];
-        const startMin = timeToMin(r.startTime);
-        const rawEnd = timeToMin(r.endTime);
-        const endMin = rawEnd === 0 && startMin > 0 ? 1440 : rawEnd;
+      let ticks = '';
+      for (let m = lo; m < hi; m += 60) {
+        ticks += `<div class="gx-tick" style="inset-inline-start:${at(m)}%">` +
+          String(Math.floor(m / 60)).padStart(2, '0') + ':00</div>';
+      }
+      ruler.innerHTML = `<div class="gx-spacer"></div><div class="gx-track">${ticks}</div>`;
 
-        bodyHtml += `<tr>`;
-        bodyHtml += `<td class="gantt-info">${r.sortIdx + 1}</td>`;
-        bodyHtml += `<td class="gantt-info">${toDisplayDate(r.date)}</td>`;
-        bodyHtml += `<td class="gantt-info">${esc(r.from)}</td>`;
-        bodyHtml += `<td class="gantt-info">${esc(r.to)}</td>`;
-        bodyHtml += `<td class="gantt-info">${r.startTime}</td>`;
-        bodyHtml += `<td class="gantt-info">${r.endTime}</td>`;
+      let hourLines = '';
+      for (let m = lo + 60; m < hi; m += 60) {
+        hourLines += `<div class="gx-hour" style="inset-inline-start:${at(m)}%"></div>`;
+      }
 
-        for (const slotMin of slots) {
-          const filled = slotMin >= startMin && slotMin < endMin;
-          bodyHtml += `<td class="gantt-bar${filled ? ' gantt-filled' : ''}"></td>`;
+      let html = '';
+      for (const date of Object.keys(byDate).sort()) {
+        const list = byDate[date].slice()
+          .sort((a, b) => timeToMin(a.startTime) - timeToMin(b.startTime));
+        const dow = getDayOfWeek(date);
+        const w = getWorkingHoursForDay(dow);
+        const shift = w
+          ? `<div class="gx-shift" style="inset-inline-start:${at(timeToMin(w.start))}%;` +
+            `width:${(timeToMin(w.end) - timeToMin(w.start)) / span * 100}%"></div>`
+          : '';
+
+        // Trips overlapping in time mean several vehicles are out at once, so
+        // the peak is how many the day actually needs. A trip ending exactly
+        // as the next begins is a handover, not an overlap.
+        const marks = [];
+        for (const r of list) { marks.push([timeToMin(r.startTime), 1], [endOf(r), -1]); }
+        marks.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+        let concurrent = 0, peak = 0;
+        for (const [, delta] of marks) { concurrent += delta; peak = Math.max(peak, concurrent); }
+
+        const billed = list.reduce((sum, r) => sum + (r.code === 'Z' ? 0 : r.price), 0);
+        html += '<div class="gx-day">' +
+          `<span class="gx-day-name">${HEB_DAYS[dow]}׳</span>` +
+          `<span class="gx-day-date">${toDisplayDate(date)}</span>` +
+          `<span class="gx-day-window">${w ? 'שעות עבודה ' + w.start + '–' + w.end : 'ללא שעות עבודה'}</span>` +
+          '<span class="gx-day-stats">' + list.length + ' נסיעות' +
+          (peak > 1 ? ` · עד <span class="gx-peak">${peak}</span> במקביל` : '') +
+          (billed ? ` · <span class="gx-cost">${billed} ₪</span>` : '') +
+          '</span></div>';
+
+        for (const r of list) {
+          const s = timeToMin(r.startTime), e = endOf(r);
+          const label = `${esc(r.from)} ← ${esc(r.to)}`;
+          html += '<div class="gx-row">' +
+            '<div class="gx-gutter">' +
+            `<div class="gx-route">${label}</div>` +
+            `<div class="gx-meta">${r.startTime}–${r.endTime}` +
+            (r.doctor ? ' · ' + esc(r.doctor) : '') + '</div>' +
+            '</div>' +
+            `<div class="gx-track">${shift}${hourLines}` +
+            `<div class="gx-bar c-${r.code}" ` +
+            `style="inset-inline-start:${at(s)}%;width:${Math.max(0.4, (e - s) / span * 100)}%" ` +
+            `title="${label} · ${r.startTime}–${r.endTime} · ${esc(r.category)}"></div>` +
+            '</div></div>';
         }
-        bodyHtml += `</tr>`;
       }
-
-      if (filtered.length === 0) {
-        bodyHtml = `<tr><td colspan="${6 + slots.length}" style="text-align:center;padding:16px;color:#999">אין נסיעות ליום זה</td></tr>`;
-      }
-
-      document.getElementById('ganttBody').innerHTML = bodyHtml;
+      board.innerHTML = html;
     }
 
     function renderAll() {
