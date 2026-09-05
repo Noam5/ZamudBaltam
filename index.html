@@ -191,6 +191,66 @@
       border-color: #9bc2e6;
     }
 
+    /* --- Excel-style column reorder + resize --- */
+    th.col-movable {
+      cursor: grab;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    th.col-dragging {
+      opacity: .4;
+    }
+
+    th.col-drop {
+      box-shadow: inset 0 3px 0 #217346, inset 0 -3px 0 #217346;
+    }
+
+    .col-resizer {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      inset-inline-end: -1px;
+      width: 7px;
+      cursor: col-resize;
+      user-select: none;
+      z-index: 3;
+    }
+
+    .col-resizer:hover,
+    .col-resizer.active {
+      background: #217346;
+      opacity: .55;
+    }
+
+    table.col-resizing,
+    table.col-dragging-active {
+      user-select: none;
+    }
+
+    table.col-dragging-active th.col-movable {
+      cursor: grabbing;
+    }
+
+    table.col-resizing th.col-movable {
+      cursor: col-resize;
+    }
+
+    .col-reset {
+      margin-inline-start: auto;
+      font-size: 12px;
+      padding: 2px 8px;
+      cursor: pointer;
+      background: #f3f6f4;
+      border: 1px solid #b4c8bc;
+      border-radius: 3px;
+      color: #35604a;
+    }
+
+    .col-reset:hover {
+      background: #e2efda;
+    }
+
     /* --- Day color palette (alternating per date) --- */
     .day-0 {
       background: #fff;
@@ -959,6 +1019,7 @@
       <div class="legend-item"><span class="legend-sq" style="background:#c65100"></span> בלת"ם (B)</div>
       <div class="legend-item"><span class="legend-sq" style="background:#c00"></span> בלת"ם מחוץ לשעות (BML)</div>
       <div class="legend-item"><span class="legend-sq" style="background:#6a1b9a"></span> בלת"ם 120 (B120)</div>
+      <button class="col-reset" onclick="resetColumnLayout('tripsTable')" title="החזר את סדר ורוחב העמודות לברירת המחדל">אפס עמודות</button>
     </div>
     <div class="table-wrap">
       <table id="tripsTable">
@@ -1525,6 +1586,272 @@ if (typeof module !== "undefined" && module.exports) module.exports = { OPT_TRIP
     function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
     // ============================================================
+    // COLUMN LAYOUT — Excel-style reorder (drag a header) and resize
+    // (drag a header's edge). Stored per browser in localStorage rather than
+    // in the shared cloud state, since this is a per-user view preference and
+    // not data other users should inherit.
+    // ============================================================
+
+    const COL_PREFS_KEY = STORAGE_KEY + ':columns';
+    const COL_MIN_WIDTH = 34;
+    const colLayouts = {};
+
+    function readColPrefs() {
+      try { return JSON.parse(localStorage.getItem(COL_PREFS_KEY)) || {}; }
+      catch (e) { return {}; }
+    }
+
+    function writeColPrefs(tableId) {
+      const st = colLayouts[tableId];
+      if (!st) return;
+      try {
+        const all = readColPrefs();
+        all[tableId] = { order: st.order, widths: st.widths };
+        localStorage.setItem(COL_PREFS_KEY, JSON.stringify(all));
+      } catch (e) {
+        // Private browsing or quota — the layout still works for this session.
+        console.warn('לא ניתן לשמור את פריסת העמודות:', e.message);
+      }
+    }
+
+    // A saved order is only usable if it is a permutation of exactly this many
+    // columns; anything else (an older layout, a hand-edited value) is discarded.
+    function isValidOrder(o, n) {
+      return Array.isArray(o) && o.length === n &&
+        new Set(o).size === n &&
+        o.every(i => Number.isInteger(i) && i >= 0 && i < n);
+    }
+
+    function initColumnLayout(tableId) {
+      const table = document.getElementById(tableId);
+      if (!table || !table.tHead || colLayouts[tableId]) return;
+      const headRow = table.tHead.rows[0];
+      const ths = [...headRow.cells];
+      const n = ths.length;
+      if (!n) return;
+
+      // Measure while the table is still auto-laid-out, so the untouched
+      // default keeps exactly the proportions it has today.
+      const natural = ths.map(th => Math.max(COL_MIN_WIDTH, Math.round(th.getBoundingClientRect().width)));
+
+      const saved = readColPrefs()[tableId] || {};
+      const order = isValidOrder(saved.order, n) ? saved.order.slice() : ths.map((_, i) => i);
+      const widths = (Array.isArray(saved.widths) && saved.widths.length === n)
+        ? saved.widths.map((w, i) => Math.max(COL_MIN_WIDTH, Math.round(+w) || natural[i]))
+        : natural.slice();
+
+      let cg = table.querySelector('colgroup');
+      if (!cg) { cg = document.createElement('colgroup'); table.insertBefore(cg, table.firstChild); }
+      cg.innerHTML = '';
+      for (let i = 0; i < n; i++) cg.appendChild(document.createElement('col'));
+      // Fixed layout is what makes an explicit width actually stick.
+      table.style.tableLayout = 'fixed';
+
+      ths.forEach((th, i) => {
+        th.dataset.col = i;
+        th.classList.add('col-movable');
+        th.addEventListener('mousedown', e => startColDrag(e, tableId, i));
+
+        const grip = document.createElement('div');
+        grip.className = 'col-resizer';
+        grip.title = 'גרור לשינוי רוחב, לחיצה כפולה להתאמה אוטומטית';
+        grip.addEventListener('mousedown', e => startColResize(e, tableId, i));
+        grip.addEventListener('dblclick', e => { e.stopPropagation(); autoFitColumn(tableId, i); });
+        th.appendChild(grip);
+      });
+
+      colLayouts[tableId] = { table, order, widths, natural, n };
+      applyColumnLayout(tableId);
+    }
+
+    function applyColumnLayout(tableId) {
+      const st = colLayouts[tableId];
+      if (!st) return;
+      const headRow = st.table.tHead.rows[0];
+
+      // Appending an existing node moves it, so walking the display order
+      // leaves the row in exactly that order.
+      st.order.forEach(orig => {
+        const th = headRow.querySelector('th[data-col="' + orig + '"]');
+        if (th) headRow.appendChild(th);
+      });
+
+      for (const tb of st.table.tBodies) {
+        for (const row of tb.rows) {
+          const cells = [...row.cells];
+          // Rows that span columns (empty-state messages) can't be reordered.
+          if (cells.length !== st.n) continue;
+          // Freshly rendered rows arrive in default order; tag them once so a
+          // second call to this function is a no-op rather than a scramble.
+          if (row.dataset.colTagged !== '1') {
+            cells.forEach((td, i) => { td.dataset.col = i; });
+            row.dataset.colTagged = '1';
+          }
+          st.order.forEach(orig => {
+            const td = cells.find(c => +c.dataset.col === orig);
+            if (td) row.appendChild(td);
+          });
+        }
+      }
+      applyColumnWidths(tableId);
+    }
+
+    function applyColumnWidths(tableId) {
+      const st = colLayouts[tableId];
+      if (!st) return;
+      const cols = st.table.querySelectorAll('colgroup > col');
+      st.order.forEach((orig, pos) => {
+        if (cols[pos]) cols[pos].style.width = st.widths[orig] + 'px';
+      });
+    }
+
+    // --- resize ---
+    let colResize = null;
+
+    function startColResize(e, tableId, colIdx) {
+      const st = colLayouts[tableId];
+      if (!st) return;
+      e.preventDefault();
+      e.stopPropagation();
+      colResize = {
+        tableId, colIdx,
+        startX: e.clientX,
+        startW: st.widths[colIdx],
+        rtl: getComputedStyle(st.table).direction === 'rtl',
+        grip: e.currentTarget
+      };
+      st.table.classList.add('col-resizing');
+      e.currentTarget.classList.add('active');
+      document.addEventListener('mousemove', onColResizeMove);
+      document.addEventListener('mouseup', endColResize);
+    }
+
+    function onColResizeMove(e) {
+      if (!colResize) return;
+      const st = colLayouts[colResize.tableId];
+      const delta = e.clientX - colResize.startX;
+      // The grip sits on the column's trailing edge, which in RTL is its left
+      // side — so there, dragging left widens the column.
+      const w = colResize.startW + (colResize.rtl ? -delta : delta);
+      st.widths[colResize.colIdx] = Math.max(COL_MIN_WIDTH, Math.round(w));
+      applyColumnWidths(colResize.tableId);
+    }
+
+    function endColResize() {
+      if (!colResize) return;
+      const st = colLayouts[colResize.tableId];
+      st.table.classList.remove('col-resizing');
+      colResize.grip.classList.remove('active');
+      writeColPrefs(colResize.tableId);
+      colResize = null;
+      document.removeEventListener('mousemove', onColResizeMove);
+      document.removeEventListener('mouseup', endColResize);
+    }
+
+    // Double-clicking a grip sizes that column to its widest cell, the way
+    // double-clicking a column border does in Excel.
+    function autoFitColumn(tableId, colIdx) {
+      const st = colLayouts[tableId];
+      if (!st) return;
+      const pos = st.order.indexOf(colIdx);
+      if (pos < 0) return;
+      let widest = COL_MIN_WIDTH;
+      const probe = document.createElement('span');
+      probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;font:inherit';
+      st.table.appendChild(probe);
+      // Editable cells hold their text in an <input>, where textContent is empty.
+      const cellText = cell => {
+        const field = cell.querySelector('input, select');
+        return (field ? field.value || field.placeholder : cell.textContent).trim();
+      };
+      // Editable cells may also carry a date/time picker icon beside the input,
+      // which takes room the text probe doesn't see.
+      const cellIcons = cell => cell.querySelector('input, select')
+        ? [...cell.querySelectorAll('span, button')].reduce((sum, el) => sum + el.offsetWidth, 0)
+        : 0;
+      const headCell = st.table.tHead.rows[0].cells[pos];
+      for (const cell of [headCell, ...[...st.table.tBodies].flatMap(tb => [...tb.rows]
+        .filter(r => r.cells.length === st.n).map(r => r.cells[pos]))]) {
+        if (!cell) continue;
+        probe.textContent = cellText(cell);
+        widest = Math.max(widest, probe.getBoundingClientRect().width + cellIcons(cell));
+      }
+      probe.remove();
+      // +18 for padding/border/grip; capped so one long note can't make a column unusable.
+      st.widths[colIdx] = Math.min(600, Math.ceil(widest) + 18);
+      applyColumnWidths(tableId);
+      writeColPrefs(tableId);
+    }
+
+    // --- reorder ---
+    // Pointer-driven rather than HTML5 drag-and-drop: it behaves consistently
+    // across browsers, works on touch, and lets a plain click still work.
+    let colDrag = null;
+
+    function startColDrag(e, tableId, colIdx) {
+      if (e.button !== 0 || e.target.classList.contains('col-resizer')) return;
+      if (!colLayouts[tableId]) return;
+      colDrag = { tableId, colIdx, startX: e.clientX, active: false, over: null };
+      document.addEventListener('mousemove', onColDragMove);
+      document.addEventListener('mouseup', endColDrag);
+    }
+
+    function headerUnder(st, x, y) {
+      return [...st.table.tHead.rows[0].cells].find(th => {
+        const r = th.getBoundingClientRect();
+        return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+      }) || null;
+    }
+
+    function onColDragMove(e) {
+      if (!colDrag) return;
+      const st = colLayouts[colDrag.tableId];
+      if (!st) return;
+      // Only treat it as a drag once the pointer has actually travelled, so a
+      // plain click on a header isn't swallowed.
+      if (!colDrag.active) {
+        if (Math.abs(e.clientX - colDrag.startX) < 4) return;
+        colDrag.active = true;
+        st.table.classList.add('col-dragging-active');
+        const th = st.table.tHead.rows[0].querySelector('th[data-col="' + colDrag.colIdx + '"]');
+        if (th) th.classList.add('col-dragging');
+      }
+      e.preventDefault();
+      const target = headerUnder(st, e.clientX, e.clientY);
+      st.table.querySelectorAll('th.col-drop').forEach(th => th.classList.remove('col-drop'));
+      if (target && +target.dataset.col !== colDrag.colIdx) target.classList.add('col-drop');
+      colDrag.over = target ? +target.dataset.col : null;
+    }
+
+    function endColDrag() {
+      const d = colDrag;
+      colDrag = null;
+      document.removeEventListener('mousemove', onColDragMove);
+      document.removeEventListener('mouseup', endColDrag);
+      if (!d) return;
+      const st = colLayouts[d.tableId];
+      if (!st) return;
+      st.table.classList.remove('col-dragging-active');
+      st.table.querySelectorAll('th').forEach(th => th.classList.remove('col-dragging', 'col-drop'));
+      if (!d.active || d.over === null || d.over === d.colIdx) return;
+      const fromPos = st.order.indexOf(d.colIdx);
+      const toPos = st.order.indexOf(d.over);
+      if (fromPos < 0 || toPos < 0) return;
+      st.order.splice(toPos, 0, st.order.splice(fromPos, 1)[0]);
+      applyColumnLayout(d.tableId);
+      writeColPrefs(d.tableId);
+    }
+
+    function resetColumnLayout(tableId) {
+      const st = colLayouts[tableId];
+      if (!st) return;
+      st.order = st.natural.map((_, i) => i);
+      st.widths = st.natural.slice();
+      applyColumnLayout(tableId);
+      writeColPrefs(tableId);
+    }
+
+    // ============================================================
     // COMPUTATION ENGINE
     // ============================================================
 
@@ -1840,7 +2167,7 @@ if (typeof module !== "undefined" && module.exports) module.exports = { OPT_TRIP
         `<td style="position:relative"><input type="text" id="newTo" placeholder="למקום" autocomplete="off"><div class="autocomplete-list" id="acTo"></div></td>` +
         `<td><div class="time-cell"><input type="text" id="newEnd" placeholder="HH:MM" oninput="timeInputHandler(event)"><span class="time-pick" onclick="openTimePicker('newEnd')">&#128339;</span></div></td>` +
         `<td><input type="text" id="newDoctor" placeholder="רופא" autocomplete="off"></td>` +
-        `<td colspan="4"><button class="btn btn-add" onclick="addTrip()" style="font-size:11px">+ הוסף</button></td>` +
+        `<td class="add-cell"><button class="btn btn-add" onclick="addTrip()" style="font-size:11px">+ הוסף</button></td><td></td><td></td><td></td>` +
         `</tr>`;
 
       // Data rows with inline editing
@@ -1867,6 +2194,10 @@ if (typeof module !== "undefined" && module.exports) module.exports = { OPT_TRIP
       }
 
       tbody.innerHTML = html;
+
+      // Columns are re-created on every render, so re-apply the saved layout.
+      initColumnLayout('tripsTable');
+      applyColumnLayout('tripsTable');
 
       // Re-setup autocomplete on the new-row inputs
       setupAutocomplete('newFrom', 'acFrom');
